@@ -1,0 +1,76 @@
+services:
+  nginx:
+    image: nginx:stable
+    ports:
+      - "8443:8443"
+      - "443:443"
+    volumes:
+      - ./Nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./Nginx/certs:/etc/nginx/certs
+    depends_on:
+      - keycloak
+      - api-gateway
+    networks:
+      - hormigas-net
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:23.0.7
+    environment:
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8083:8080"
+    volumes:
+      - ./hormigas-realm.json:/opt/keycloak/data/import/hormigas-realm.json
+    command:
+      - start-dev
+      - --import-realm
+      - --proxy=passthrough
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/realms/master"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - hormigas-net
+
+  master-service:
+    build: ./MasterService
+    ports:
+      - "8081:8081"
+    networks:
+      - hormigas-net
+
+  client-service:
+    build: ./ClientService
+    ports:
+      - "8082:8082"
+    networks:
+      - hormigas-net
+
+  api-gateway:
+    build: ./ApiGateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - keycloak
+      - client-service
+      - master-service
+    networks:
+      - hormigas-net
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    volumes:
+      - ./Prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+    networks:
+      - hormigas-net
+    depends_on:
+      - api-gateway
+
+networks:
+  hormigas-net:
+    driver: bridge

@@ -1,0 +1,123 @@
+server:
+  port: 8080
+
+management:
+  metrics:
+    enable:
+      http.client.requests.active: false
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+spring:
+  application:
+    name: api-gateway
+
+
+  security:
+    oauth2:
+      client:
+        registration:
+          keycloak:
+            client-id: api-gateway
+            provider: keycloak
+            authorization-grant-type: authorization_code
+            redirect-uri: https://nginx/login/oauth2/code/keycloak
+            scope: openid,profile,email
+        provider:
+          keycloak:
+            issuer-uri: https://nginx:8443/realms/hormigas
+            user-name-attribute: preferred_username
+
+  cloud:
+    gateway:
+      default-filters:
+        - TokenRelay
+      routes:
+        - id: masters-service
+          uri: lb://masters
+          predicates:
+            - Path=/master/**
+          filters:
+            - RewritePath=/master/(?<segment>.*),/$\{segment}
+            - name: JwtRole
+              args:
+                role: master
+            - name: CircuitBreaker
+              args:
+                name: internalCB
+                fallbackUri: forward:/fallback
+
+        - id: clients-service
+          uri: lb://clients
+          predicates:
+            - Path=/client/**
+          filters:
+            - RewritePath=/client/(?<segment>.*),/$\{segment}
+            - name: JwtRole
+              args:
+                role: client
+            - name: CircuitBreaker
+              args:
+                name: internalCB
+                fallbackUri: forward:/fallback
+
+    loadbalancer:
+      cache:
+        ttl: 60s
+        capacity: 100
+        caffeine:
+          spec: maximumSize=100,expireAfterWrite=1h
+        enabled: true
+      configurations: health-check
+      health-check:
+        interval: 15s
+        repeat-health-check: true
+        path:
+          masters: /q/health
+          clients: /q/health
+      stats:
+        micrometer:
+          enabled: true
+
+
+hosts-lists:
+  client-hosts:
+    - client-service:8082
+    - client-service:8083
+  master-hosts:
+    - master-service:8081
+    - master-service:8085
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      internalCB:
+        registerHealthIndicator: true
+        slidingWindowSize: 10
+        minimumNumberOfCalls: 5
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+        slidingWindowType: COUNT_BASED
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+
+cloud-security:
+  keycloak-realm: hormigas
+  keycloakURL: https://nginx:8443
+  gateway-redirectURL:  https://nginx
+  prometheus-host-name: prometheus.hormigas_hormigas-net
+
+
+logging:
+  level:
+    org.springframework.security: WARN
+    org.springframework.web: WARN
+    org.springframework.cloud.loadbalancer.core: WARN
+
