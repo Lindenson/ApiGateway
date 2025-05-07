@@ -19,26 +19,14 @@ spring:
   application:
     name: api-gateway
 
-
   security:
     oauth2:
-      client:
-        registration:
-          keycloak:
-            client-id: api-gateway
-            provider: keycloak
-            authorization-grant-type: authorization_code
-            redirect-uri: https://nginx/login/oauth2/code/keycloak
-            scope: openid,profile,email
-        provider:
-          keycloak:
-            issuer-uri: https://nginx:8443/realms/hormigas
-            user-name-attribute: preferred_username
+      resourceserver:
+        jwt:
+          issuer-uri: https://nginx:8443/realms/hormigas
 
   cloud:
     gateway:
-      default-filters:
-        - TokenRelay
       routes:
         - id: masters-service
           uri: lb://masters
@@ -86,7 +74,6 @@ spring:
         micrometer:
           enabled: true
 
-
 hosts-lists:
   client-hosts:
     - client-service:8082
@@ -107,12 +94,6 @@ resilience4j:
         permittedNumberOfCallsInHalfOpenState: 3
         slidingWindowType: COUNT_BASED
         automaticTransitionFromOpenToHalfOpenEnabled: true
-
-cloud-security:
-  keycloak-realm: hormigas
-  keycloakURL: https://nginx:8443
-  gateway-redirectURL:  https://nginx
-  prometheus-host-name: prometheus.hormigas_hormigas-net
 
 
 logging:

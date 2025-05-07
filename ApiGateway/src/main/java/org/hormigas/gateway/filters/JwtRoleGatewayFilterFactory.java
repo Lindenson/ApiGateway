@@ -8,6 +8,7 @@ import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFac
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
@@ -31,8 +32,8 @@ public class JwtRoleGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
                 exchange.getPrincipal()
                         .flatMap(auth -> {
                             if (auth instanceof Authentication authentication) {
-                                var principal = (OAuth2AuthenticatedPrincipal) authentication.getPrincipal();
-                                var realmAccess = (Map<String, Object>) principal.getAttributes().get("realm_access");
+                                var principal = (Jwt) authentication.getPrincipal();
+                                Map<String, Object> realmAccess = principal.getClaim("realm_access");
                                 var roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : Collections.emptyList();
 
                                 if (roles.contains(config.getRole())) {
