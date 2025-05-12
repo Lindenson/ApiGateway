@@ -11,6 +11,7 @@ services:
     depends_on:
       - keycloak
       - api-gateway
+      - messenger
     networks:
       - hormigas-net
 
@@ -19,8 +20,6 @@ services:
     environment:
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-    ports:
-      - "8083:8080"
     volumes:
       - ./hormigas-realm.json:/opt/keycloak/data/import/hormigas-realm.json
     command:
@@ -37,22 +36,21 @@ services:
 
   master-service:
     build: ./MasterService
-    ports:
-      - "8081:8081"
     networks:
       - hormigas-net
 
   client-service:
     build: ./ClientService
-    ports:
-      - "8082:8082"
+    networks:
+      - hormigas-net
+
+  messenger:
+    build: ./Messenger
     networks:
       - hormigas-net
 
   api-gateway:
     build: ./ApiGateway
-    ports:
-      - "8080:8080"
     depends_on:
       - keycloak
       - client-service

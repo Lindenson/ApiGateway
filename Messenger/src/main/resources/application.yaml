@@ -1,0 +1,12 @@
+quarkus:
+  websockets-next:
+    server:
+      supported-subprotocols: bearer-token-carrier
+      propagate-subprotocol-headers: true
+
+security:
+  keycloak:
+    cert:
+      url: http://keycloak:8080/realms/hormigas/protocol/openid-connect/certs
+    request:
+      rate-limit: 1000
