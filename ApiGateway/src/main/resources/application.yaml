@@ -77,10 +77,10 @@ spring:
 hosts-lists:
   client-hosts:
     - client-service:8082
-    - client-service:8083
+    - client-service:8085
   master-hosts:
     - master-service:8081
-    - master-service:8085
+    - master-service:8087
 
 resilience4j:
   circuitbreaker:
@@ -101,4 +101,3 @@ logging:
     org.springframework.security: WARN
     org.springframework.web: WARN
     org.springframework.cloud.loadbalancer.core: WARN
-

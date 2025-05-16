@@ -13,12 +13,12 @@ const ProtectedPage: React.FC = () => {
 
     useEffect(() => {
         if (keycloak?.token && keycloak?.tokenParsed) {
-            const roles: string[] = keycloak.tokenParsed.realm_access?.roles || [];
+            const status: string = keycloak.tokenParsed.status || "unknown";
 
             let endpoint = '/fallout';
-            if (roles.includes('client')) {
+            if (status === 'client') {
                 endpoint = '/client/hello';
-            } else if (roles.includes('master')) {
+            } else if (status === 'master') {
                 endpoint = '/master/hello';
             }
 

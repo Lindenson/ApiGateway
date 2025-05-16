@@ -16,12 +16,13 @@ services:
       - hormigas-net
 
   keycloak:
-    image: quay.io/keycloak/keycloak:23.0.7
+    image: quay.io/keycloak/keycloak:26.2.0
     environment:
-      KEYCLOAK_ADMIN: admin
-      KEYCLOAK_ADMIN_PASSWORD: admin
+      KEYCLOAK_ADMIN: ant
+      KEYCLOAK_ADMIN_PASSWORD: ant
     volumes:
-      - ./hormigas-realm.json:/opt/keycloak/data/import/hormigas-realm.json
+      - ./Keycloak/realm:/opt/keycloak/data/import
+      - ./Keycloak/themes:/opt/keycloak/themes/my-theme
     command:
       - start-dev
       - --import-realm
@@ -33,6 +34,8 @@ services:
       retries: 10
     networks:
       - hormigas-net
+    ports: 
+      - 8083:8080
 
   master-service:
     build: ./MasterService
@@ -48,6 +51,8 @@ services:
     build: ./Messenger
     networks:
       - hormigas-net
+    depends_on:
+      - postgres
 
   api-gateway:
     build: ./ApiGateway
@@ -70,6 +75,22 @@ services:
     depends_on:
       - api-gateway
 
+  postgres:
+    image: postgres:15
+    container_name: hormigas-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ant
+      POSTGRES_PASSWORD: ant
+      POSTGRES_DB: hormigasdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./Postgres:/var/lib/postgresql/data
+    networks:
+      - hormigas-net
+
+
 networks:
-  hormigas-net:
-    driver: bridge
+   hormigas-net:
+     driver: bridge

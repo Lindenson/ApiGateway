@@ -4,6 +4,31 @@ quarkus:
       supported-subprotocols: bearer-token-carrier
       propagate-subprotocol-headers: true
 
+  datasource:
+    db-kind: postgresql
+    username: ant
+    password: ant
+    reactive:
+      url: postgres://postgres/hormigasdb
+
+  hibernate-orm:
+    database:
+      generation: drop-and-create
+    log:
+      sql: true
+
+  hibernate-reactive:
+    log:
+      sql: true
+
+mp:
+  messaging:
+    outgoing:
+      messages-out:
+        connector: smallrye-in-memory
+        buffer-size: 256
+        overflow-strategy: drop
+
 security:
   keycloak:
     cert:

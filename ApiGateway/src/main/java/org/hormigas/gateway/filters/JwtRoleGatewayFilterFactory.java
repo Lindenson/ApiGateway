@@ -6,37 +6,31 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.oauth2.core.OAuth2AuthenticatedPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-
 @Component
 @Slf4j
 public class JwtRoleGatewayFilterFactory extends AbstractGatewayFilterFactory<JwtRoleGatewayFilterFactory.Config> {
+
+    public static final String TOKEN_ATTRIBUTE_NAME = "status";
 
     public JwtRoleGatewayFilterFactory() {
         super(Config.class);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public GatewayFilter apply(Config config) {
         return (exchange, chain) ->
                 exchange.getPrincipal()
                         .flatMap(auth -> {
-                            if (auth instanceof Authentication authentication) {
+                            if (auth instanceof JwtAuthenticationToken authentication) {
                                 var principal = (Jwt) authentication.getPrincipal();
-                                Map<String, Object> realmAccess = principal.getClaim("realm_access");
-                                var roles = realmAccess != null ? (List<String>) realmAccess.get("roles") : Collections.emptyList();
-
-                                if (roles.contains(config.getRole())) {
+                                String status = principal.getClaim(TOKEN_ATTRIBUTE_NAME);
+                                if (status.equals(config.getRole())) {
                                     return chain.filter(exchange);
                                 } else {
                                     log.warn("Access denied: missing role {}", config.getRole());

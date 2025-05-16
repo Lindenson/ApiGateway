@@ -17,6 +17,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
+import java.util.Optional;
 
 @ApplicationScoped
 public class JwtValidator {
@@ -49,16 +50,28 @@ public class JwtValidator {
         }
     }
 
-    public boolean validate(String token) {
+    public Optional<ClientData> validate(String token) {
         try {
             log.debug("Processing token in keycloak");
             SignedJWT signedJWT = SignedJWT.parse(token);
             JWTClaimsSet claims = jwtProcessor.process(signedJWT, null);
-            return claims.getExpirationTime() == null ||
-                    claims.getExpirationTime().getTime() > System.currentTimeMillis();
+            if (claims.getExpirationTime() == null ||
+                    claims.getExpirationTime().getTime() > System.currentTimeMillis()) {
+
+                String clientId = claims.getSubject();
+                String preferredUsername = claims.getStringClaim("preferred_username");
+
+                ClientData data = ClientData.builder()
+                        .clientId(clientId)
+                        .clientName(preferredUsername)
+                        .build();
+
+                return Optional.of(data);
+            }
+            return Optional.empty();
         } catch (Exception e) {
             log.error("Token validation error", e);
-            return false;
+            return Optional.empty();
         }
     }
 }

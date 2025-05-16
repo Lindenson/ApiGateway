@@ -1,36 +1,65 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useKeycloak } from '@react-keycloak/web';
 
+type ServerMessage = {
+    id: string;
+    content: string;
+};
+
 
 const MessengerPage: React.FC = () => {
     const [messages, setMessages] = useState<string[]>([]);
     const wsRef = useRef<WebSocket | null>(null);
+    const reconnectTimeoutRef = useRef<number | null>(null);
+    const reconnectAttemptsRef = useRef(0);
 
     const { keycloak } = useKeycloak();
 
     useEffect(() => {
-        if (keycloak?.token) {
-            const quarkusHeaderProtocol = encodeURIComponent("quarkus-http-upgrade#Authorization#Bearer " + keycloak.token)
-            const ws = new WebSocket('wss://nginx/messenger', ["bearer-token-carrier", quarkusHeaderProtocol]);
+        if (!keycloak?.token) return;
+
+        const connect = () => {
+            const quarkusHeaderProtocol = encodeURIComponent(
+                "quarkus-http-upgrade#Authorization#Bearer " + keycloak.token
+            );
+            const ws = new WebSocket("wss://nginx/messenger", [
+                "bearer-token-carrier",
+                quarkusHeaderProtocol,
+            ]);
             wsRef.current = ws;
 
             ws.onmessage = (event) => {
-                setMessages((prev) => [...prev, event.data]);
+                const data: ServerMessage = JSON.parse(event.data);
+                console.log("Received and acknowledged:", data.content);
+                setMessages((prev) => [...prev, data.content]);
+                ws.send(JSON.stringify({ ackId: data.id }));
             };
 
             ws.onerror = (err) => {
-                console.error('WebSocket error:', err);
+                console.error("WebSocket error:", err);
             };
 
-            ws.onclose = () => {
-                console.log('WebSocket connection closed');
-            };
+            ws.onclose = (event) => {
+                console.log("WebSocket connection closed", event.reason);
+                if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
 
-            return () => {
-                ws.close();
+                const timeout = Math.min(1000 * 2 ** reconnectAttemptsRef.current, 30000); // max 30 сек
+                reconnectTimeoutRef.current = setTimeout(() => {
+                    reconnectAttemptsRef.current++;
+                    console.log(`Reconnecting... try #${reconnectAttemptsRef.current}`);
+                    connect();
+                }, timeout);
             };
-        }
-    }, []);
+        };
+
+        reconnectAttemptsRef.current = 0;
+        connect();
+
+        return () => {
+            if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
+            if (wsRef.current) wsRef.current.close();
+        };
+    }, [keycloak]);
 
     return (
         <div>
