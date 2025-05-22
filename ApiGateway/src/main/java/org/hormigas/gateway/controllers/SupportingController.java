@@ -11,7 +11,6 @@ import reactor.core.publisher.Mono;
 @Slf4j
 public class SupportingController {
 
-
     @GetMapping("/fallback")
     public Mono<String> fallback() {
         return Mono.just("Service is temporarily unavailable. Please try again later.");

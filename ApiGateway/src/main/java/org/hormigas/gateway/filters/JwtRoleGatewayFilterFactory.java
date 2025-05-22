@@ -26,6 +26,7 @@ public class JwtRoleGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
     public GatewayFilter apply(Config config) {
         return (exchange, chain) ->
                 exchange.getPrincipal()
+                        .switchIfEmpty(Mono.defer(() -> deny(exchange, "Forbidden: no principal")).then(Mono.empty()))
                         .flatMap(auth -> {
                             if (auth instanceof JwtAuthenticationToken authentication) {
                                 var principal = (Jwt) authentication.getPrincipal();
@@ -33,16 +34,20 @@ public class JwtRoleGatewayFilterFactory extends AbstractGatewayFilterFactory<Jw
                                 if (status.equals(config.getRole())) {
                                     return chain.filter(exchange);
                                 } else {
-                                    log.warn("Access denied: missing role {}", config.getRole());
-                                    return deny(exchange, "Forbidden: role " + config.getRole() + " required");
+                                    String reason = String.format("Forbidden: missing role %s for user %s", config.getRole(), principal.getSubject());
+                                    return deny(exchange, reason);
                                 }
                             }
                             return deny(exchange, "Forbidden: no authentication");
+                        })
+                        .onErrorResume(ex -> {
+                            log.error("Error in JwtRole filter", ex);
+                            return deny(exchange, "Forbidden: internal error");
                         });
     }
 
     private Mono<Void> deny(ServerWebExchange exchange, String reason) {
-        log.debug("Request denied: {}", reason);
+        log.warn("Request denied: {}", reason);
         exchange.getResponse().setStatusCode(HttpStatus.FORBIDDEN);
         return exchange.getResponse().setComplete();
     }

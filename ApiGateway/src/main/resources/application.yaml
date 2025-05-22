@@ -74,13 +74,28 @@ spring:
         micrometer:
           enabled: true
 
-hosts-lists:
-  client-hosts:
-    - client-service:8082
-    - client-service:8085
-  master-hosts:
-    - master-service:8081
-    - master-service:8087
+    discovery:
+      client:
+        simple:
+          instances:
+            masters:
+              - instanceId: masters1
+                serviceId: masters
+                host: master-service
+                port: 8081
+              - instanceId: masters2
+                serviceId: masters
+                host: master-service
+                port: 8087
+            clients:
+              - instanceId: client1
+                serviceId: clients
+                host: client-service
+                port: 8082
+              - instanceId: client2
+                serviceId: clients
+                host: client-service
+                port: 8089
 
 resilience4j:
   circuitbreaker:
