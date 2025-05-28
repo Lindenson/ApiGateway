@@ -5,13 +5,14 @@ import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hormigas.ws.websocket.MessengerSocket;
 import org.hormigas.ws.domen.Message;
+import org.hormigas.ws.service.api.MessagePublisher;
+import org.hormigas.ws.websocket.api.MessengerWebSocket;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
 @ApplicationScoped
-public class MessagePublisher {
+public class MessagePublisherImpl implements MessagePublisher {
 
     private final UnicastProcessor<Message> processor = UnicastProcessor.create();
     private final AtomicInteger counter = new AtomicInteger(0);
@@ -19,7 +20,7 @@ public class MessagePublisher {
 
 
     @Inject
-    MessengerSocket messengerSocket;
+    MessengerWebSocket messengerWebSocket;
 
     @PostConstruct
     void init() {
@@ -27,7 +28,7 @@ public class MessagePublisher {
                 .onOverflow().drop()
                 .subscribe().with(
                         msg -> {
-                            messengerSocket.sendToClient(msg)
+                            messengerWebSocket.sendToClient(msg)
                                     .subscribe().with(
                                             unused -> counter.decrementAndGet(),
                                             failure -> {
@@ -38,7 +39,7 @@ public class MessagePublisher {
                         failure -> {
                             Log.error("Processor terminated unexpectedly", failure);
                         },
-                        () -> Log.info("Processor completed")
+                        () -> Log.debug("Processor completed")
                 );
     }
 

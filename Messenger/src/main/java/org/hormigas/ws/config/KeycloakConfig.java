@@ -4,6 +4,7 @@ import io.smallrye.config.ConfigMapping;
 
 @ConfigMapping(prefix = "security.keycloak")
 public interface KeycloakConfig {
+
     Cert cert();
     Request request();
 

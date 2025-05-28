@@ -13,6 +13,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hormigas.ws.config.KeycloakConfig;
+import org.hormigas.ws.security.dto.ClientData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

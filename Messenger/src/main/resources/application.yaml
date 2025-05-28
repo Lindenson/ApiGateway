@@ -1,37 +1,42 @@
-quarkus:
-  websockets-next:
-    server:
-      supported-subprotocols: bearer-token-carrier
-      propagate-subprotocol-headers: true
+"%prod":
+  quarkus:
+    websockets-next:
+      server:
+        supported-subprotocols: bearer-token-carrier
+        propagate-subprotocol-headers: true
 
-  datasource:
-    db-kind: postgresql
-    username: ant
-    password: ant
-    reactive:
-      url: postgres://postgres/hormigasdb
+    datasource:
+      db-kind: postgresql
+      username: ant
+      password: ant
+      reactive:
+        url: postgres://postgres/hormigasdb
 
-  hibernate-orm:
-    database:
-      generation: drop-and-create
+    hibernate-orm:
+      database:
+        generation: update
+      sql-load-script: no-file
+
     log:
-      sql: true
+      level: WARN
+      category:
+        "org.hibernate":
+          level: WARN
+          min-level: WARN
 
-  hibernate-reactive:
-    log:
-      sql: true
+  security:
+    keycloak:
+      cert:
+        url: http://keycloak:8080/realms/hormigas/protocol/openid-connect/certs
+      request:
+        rate-limit: 1000
 
-mp:
-  messaging:
-    outgoing:
-      messages-out:
-        connector: smallrye-in-memory
-        buffer-size: 256
-        overflow-strategy: drop
 
-security:
-  keycloak:
-    cert:
-      url: http://keycloak:8080/realms/hormigas/protocol/openid-connect/certs
-    request:
-      rate-limit: 1000
+  processing:
+    messages:
+      persistence:
+        batch-size: 100
+        timeout-min: 2
+      scheduler:
+        time-interval-sec: 10
+

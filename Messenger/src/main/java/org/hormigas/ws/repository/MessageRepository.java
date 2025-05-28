@@ -19,15 +19,22 @@ public class MessageRepository implements PanacheRepository<Message> {
         Log.debug("findNextBatchToSend up to " + LocalDateTime.now());
         var query = find("sendAt <= ?1 and status = ?2", LocalDateTime.now(), Status.PENDING)
                 .page(0, limit);
-        return query.list().log();
+        return query.list();
+    }
+
+    public Uni<Message> findById(UUID id) {
+        Log.debug("find message by Id: " + id);
+        var query = find("id = ?1", id);
+        return query.firstResult();
     }
 
     public Uni<Integer> updateSendAtById(@NotNull LocalDateTime newTime, @NotNull UUID id) {
-        Log.info("Updating date to " + LocalDateTime.now());
+        Log.debug("Updating date to " + LocalDateTime.now());
         return this.update("sendAt = ?1 WHERE id = ?2", newTime, id);
     }
 
     public Uni<Integer> updateSendAtForBatch(LocalDateTime newTime, List<UUID> ids) {
+        Log.debug("Updating batch for ids " + ids);
         return this.update("sendAt = ?1 WHERE id IN ?2", newTime, ids);
     }
 }
