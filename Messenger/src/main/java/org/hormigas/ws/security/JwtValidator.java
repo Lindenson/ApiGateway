@@ -28,7 +28,7 @@ public class JwtValidator {
     @Inject
     KeycloakConfig keycloakConfig;
 
-    private ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
+    ConfigurableJWTProcessor<SecurityContext> jwtProcessor;
 
     @PostConstruct
     void init() {

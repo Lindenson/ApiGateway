@@ -26,7 +26,7 @@ import static org.mockito.Mockito.when;
 public class MessageServiceTest {
 
     @Inject
-    MessagePersistenceService messagePersistenceService;
+    ClientMessagePersistence messagePersistence;
 
     @InjectMock
     MessageRepository messageRepository;
@@ -48,7 +48,7 @@ public class MessageServiceTest {
         Message message = getMessage();
         asserter.execute(() -> messageRepository.persist(message));
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
-        asserter.execute(() -> messagePersistenceService.removeAcknowledgedMessage(message.getId().toString()));
+        asserter.execute(() -> messagePersistence.removeAcknowledgedMessage(message.getId().toString()));
         asserter.assertNull(() -> messageRepository.findById(message.getId()));
     }
 
@@ -60,7 +60,7 @@ public class MessageServiceTest {
         asserter.execute(() -> messageRepository.persist(message));
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
 
-        asserter.execute(() -> messagePersistenceService.getNextBatchToSend());
+        asserter.execute(() -> messagePersistence.getNextBatchToSend());
 
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
         asserter.assertThat(
@@ -80,7 +80,7 @@ public class MessageServiceTest {
         asserter.execute(() -> messageRepository.persist(message));
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
 
-        asserter.execute(() -> messagePersistenceService.getNextBatchToSend());
+        asserter.execute(() -> messagePersistence.getNextBatchToSend());
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
 
         asserter.assertThat(

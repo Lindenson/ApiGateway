@@ -11,6 +11,7 @@ public interface MessagesConfig {
 
     interface Persistence {
         int batchSize();
+        int queueSize();
         int timeoutMin();
     }
 

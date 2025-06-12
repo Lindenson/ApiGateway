@@ -8,7 +8,6 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.security.dto.ClientData;
-import org.hormigas.ws.service.MessagePersistenceService;
 import org.hormigas.ws.websocket.api.MessengerWebSocket;
 import org.hormigas.ws.websocket.utils.WebSocketUtils;
 import org.slf4j.LoggerFactory;
@@ -19,11 +18,11 @@ import java.util.stream.Collectors;
 
 @WebSocket(path = "/ws")
 @ApplicationScoped
-public class MessengerWebSocketImpl implements MessengerWebSocket {
+public class MessengerWebSocketImpl implements MessengerWebSocket<Message> {
 
 
     @Inject
-    MessagePersistenceService messagePersistenceService;
+    AcknowledgmentPublisher acknowledgmentPublisher;
 
     @Inject
     WebSocketUtils webSocketUtils;
@@ -59,11 +58,7 @@ public class MessengerWebSocketImpl implements MessengerWebSocket {
             JsonObject json = new JsonObject(message);
             if (json.containsKey("ackId")) {
                 String ackId = json.getString("ackId");
-
-                return Uni.createFrom().item(ackId)
-                        .onItem().transformToUni(messagePersistenceService::removeAcknowledgedMessage)
-                        .onItem().invoke(deleted -> log.debug("Deleted message {} on ACK", ackId)
-                        ).replaceWithVoid();
+                acknowledgmentPublisher.publish(ackId);
             }
         } catch (Exception e) {
             log.error("Invalid message format: {}", message, e);
@@ -71,8 +66,7 @@ public class MessengerWebSocketImpl implements MessengerWebSocket {
         return Uni.createFrom().voidItem();
     }
 
-
-    public Uni<Void> sendToClient(Message msg) {
+    public Uni<Boolean> sendToClient(Message msg) {
         log.debug("Sending message {}", msg);
 
         List<Uni<Void>> tasks = connectionRegistry.getConnections().stream()
@@ -82,10 +76,11 @@ public class MessengerWebSocketImpl implements MessengerWebSocket {
 
         if (tasks.isEmpty()) {
             log.debug("No connection found");
-            return Uni.createFrom().voidItem();
+            return Uni.createFrom().item(Boolean.FALSE);
         }
 
-        return Uni.combine().all().unis(tasks).discardItems();
+        return Uni.combine().all().unis(tasks).discardItems().replaceWith(Boolean.TRUE)
+                .onFailure().recoverWithItem(error -> Boolean.FALSE);
     }
 
     public Uni<Void> sendWithPayload(WebSocketConnection conn, Message msg) {
@@ -99,12 +94,18 @@ public class MessengerWebSocketImpl implements MessengerWebSocket {
                                     })
                                     .onFailure().invoke(err -> {
                                         log.error("Failed to send to {}", conn, err);
-                                    })
-                                    .replaceWithVoid())
+                                    }))
                     .orElse(Uni.createFrom().voidItem());
         }
 
         log.debug("Sending message to websocket failed: connection closed");
         return Uni.createFrom().voidItem();
+    }
+
+    @OnError
+    public void onError(WebSocketConnection connection, Throwable throwable) {
+        connectionRegistry.deregisterConnection(connection);
+        if (throwable instanceof HttpClosedException) log.warn("WebSocket connection closed", throwable);
+        log.error("WebSocket connection error ", throwable);
     }
 }

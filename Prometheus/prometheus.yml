@@ -6,3 +6,17 @@ scrape_configs:
     metrics_path: '/actuator/prometheus'
     static_configs:
       - targets: ['api-gateway:8080']
+    metric_relabel_configs:
+      - source_labels: [__address__]
+        target_label: application
+        replacement: hormigas-gateway
+
+
+  - job_name: 'messanger'
+    metrics_path: /q/metrics
+    static_configs:
+      - targets: ['messenger:8080']
+    metric_relabel_configs:
+      - source_labels: [__address__]
+        target_label: application
+        replacement: hormigas-messanger

@@ -11,9 +11,9 @@ import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.Json;
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.mappers.dto.SocketMessage;
-import org.hormigas.ws.security.dto.ClientData;
 import org.hormigas.ws.security.JwtValidator;
-import org.hormigas.ws.service.MessagePersistenceService;
+import org.hormigas.ws.security.dto.ClientData;
+import org.hormigas.ws.service.ClientMessagePersistence;
 import org.junit.jupiter.api.Test;
 
 import java.net.URI;
@@ -24,7 +24,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.hormigas.ws.mother.MessageCreator.*;
+import static org.hormigas.ws.mother.MessageCreator.getMessageMessageClientId;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -37,7 +37,7 @@ class MessengerWebSocketTest {
     JwtValidator jwtValidator;
 
     @InjectMock
-    MessagePersistenceService messagePersistenceService;
+    ClientMessagePersistence messagePersistence;
 
     @TestHTTPResource("/ws")
     URI uri;
@@ -49,7 +49,7 @@ class MessengerWebSocketTest {
         SocketMessage socketMessage = SocketMessage.builder().content(message.getContent()).id(message.getId().toString()).build();
 
         when(jwtValidator.validate(anyString())).thenReturn(Optional.of(ClientData.builder().clientId(message.getClientId()).build()));
-        when(messagePersistenceService.getNextBatchToSend()).thenReturn(Uni.createFrom().item(List.of(message)));
+        when(messagePersistence.getNextBatchToSend()).thenReturn(Uni.createFrom().item(List.of(message)));
 
         CountDownLatch messageLatch = new CountDownLatch(1);
         List<SocketMessage> messages = new CopyOnWriteArrayList<>();
@@ -67,16 +67,16 @@ class MessengerWebSocketTest {
                                     messages.add(Json.decodeValue(m, SocketMessage.class));
                                     messageLatch.countDown();
                                 });
-                                ws.writeTextMessage("{\"ackId\": \""+  socketMessage.getId() +"\"}");
+                                ws.writeTextMessage("{\"ackId\": \"" + socketMessage.getId() + "\"}");
                             });
             assertTrue(messageLatch.await(5, TimeUnit.SECONDS), messageLatch.toString());
-            assertEquals(socketMessage, messages.get(0));
+            assertEquals(socketMessage, messages.getFirst());
 
         } finally {
             client.close().toCompletionStage().toCompletableFuture().get(5, TimeUnit.SECONDS);
             vertx.close();
         }
 
-        verify(messagePersistenceService, times(1)).removeAcknowledgedMessage(eq(message.getId().toString()));
+        verify(messagePersistence, times(1)).removeAcknowledgedMessage(eq(message.getId().toString()));
     }
 }

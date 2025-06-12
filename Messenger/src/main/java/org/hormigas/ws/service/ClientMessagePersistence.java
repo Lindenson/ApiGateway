@@ -9,6 +9,7 @@ import jakarta.inject.Inject;
 import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.repository.MessageRepository;
+import org.hormigas.ws.service.api.MessagePersistence;
 
 import java.time.LocalDateTime;
 import java.util.Collections;
@@ -17,7 +18,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @ApplicationScoped
-public class MessagePersistenceService {
+public class ClientMessagePersistence implements MessagePersistence {
 
     @Inject
     MessagesConfig messagesConfig;

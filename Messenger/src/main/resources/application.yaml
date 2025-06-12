@@ -4,6 +4,10 @@
       server:
         supported-subprotocols: bearer-token-carrier
         propagate-subprotocol-headers: true
+        max-message-size: 1024
+        metrics:
+          enabled: true
+        auto-ping-interval: 10s
 
     datasource:
       db-kind: postgresql
@@ -24,6 +28,14 @@
           level: WARN
           min-level: WARN
 
+    micrometer:
+      enabled: true
+      export:
+        prometheus:
+          enabled: true
+          path: /q/metrics
+
+
   security:
     keycloak:
       cert:
@@ -35,8 +47,9 @@
   processing:
     messages:
       persistence:
-        batch-size: 100
-        timeout-min: 2
+        batch-size: 500
+        queue-size: 5000
+        timeout-min: 1
       scheduler:
-        time-interval-sec: 10
+        time-interval-sec: 1
 

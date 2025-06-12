@@ -3,6 +3,7 @@ package org.hormigas.ws.scheduler;
 import io.quarkus.arc.profile.IfBuildProfile;
 import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.scheduler.Scheduled;
+import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -14,6 +15,7 @@ import org.hormigas.ws.repository.MessageRepository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -37,33 +39,34 @@ public class TestScheduler {
 
     private static final AtomicInteger counter = new AtomicInteger(0);
 
-    @WithTransaction
-    @Scheduled(every = "1s")
-    public Uni<Void> insertRandomClientMessage() {
-        Message msg = new Message();
-        msg.setId(UUID.randomUUID());
-        msg.setClientId(clients.getFirst().clientId);
-        msg.setContent(clients.getFirst().message + counter.incrementAndGet());
-        msg.setSendAt(LocalDateTime.now());
-        msg.setStatus(Status.PENDING);
-
-        return messageRepository.persist(msg)
-                .replaceWithVoid();
-    }
-
-    @WithTransaction
-    @Scheduled(every = "1s")
-    public Uni<Void> insertRandomMasterMessage() {
-        Message msg = new Message();
-        msg.setId(UUID.randomUUID());
-        msg.setClientId(clients.get(1).clientId);
-        msg.setContent(clients.get(1).message + counter.incrementAndGet());
-        msg.setSendAt(LocalDateTime.now());
-        msg.setStatus(Status.PENDING);
-
-        return messageRepository.persist(msg)
-                .replaceWithVoid();
-    }
+//    @WithTransaction
+//    @Scheduled(every = "PT0.001S")
+//    public Uni<Void> insertRandomClientMessage() {
+//        return Multi.createFrom().range(0, 10000).onItem().transformToUniAndConcatenate(it -> {
+//            Message msg = new Message();
+//            msg.setId(UUID.randomUUID());
+//            msg.setClientId(clients.get(0).clientId);
+//            msg.setContent(clients.get(0).message + counter.incrementAndGet());
+//            msg.setSendAt(LocalDateTime.now());
+//            msg.setStatus(Status.PENDING);
+//            return messageRepository.persist(msg).replaceWithVoid();
+//        }).collect().asList().replaceWithVoid();
+//    }
+//
+//    @WithTransaction
+//    @Scheduled(every = "PT0.001S")
+//    public Uni<Void> insertRandomMasterMessage() {
+//
+//        return Multi.createFrom().range(0, 10000).onItem().transformToUniAndConcatenate(it -> {
+//            Message msg = new Message();
+//            msg.setId(UUID.randomUUID());
+//            msg.setClientId(clients.get(1).clientId);
+//            msg.setContent(clients.get(1).message + counter.incrementAndGet());
+//            msg.setSendAt(LocalDateTime.now());
+//            msg.setStatus(Status.PENDING);
+//            return messageRepository.persist(msg).replaceWithVoid();
+//        }).collect().asList().replaceWithVoid();
+//    }
 
     @Builder
     static class Clients {
