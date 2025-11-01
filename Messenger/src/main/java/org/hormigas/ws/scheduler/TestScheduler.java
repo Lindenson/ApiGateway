@@ -1,21 +1,21 @@
-package org.hormigas.ws.scheduler;
+package org.hormigas.ws.core.scheduler;
 
 import io.quarkus.arc.profile.IfBuildProfile;
-import io.quarkus.hibernate.reactive.panache.common.WithTransaction;
 import io.quarkus.scheduler.Scheduled;
 import io.smallrye.mutiny.Multi;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Builder;
-import org.hormigas.ws.domen.Message;
-import org.hormigas.ws.domen.Status;
-import org.hormigas.ws.repository.MessageRepository;
+import org.hormigas.ws.core.outbox.OutboxManager;
+import org.hormigas.ws.domain.MessageOrigin;
+import org.hormigas.ws.domain.MessagePayload;
+import org.hormigas.ws.domain.MessageType;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
@@ -35,38 +35,29 @@ public class TestScheduler {
     }
 
     @Inject
-    MessageRepository messageRepository;
+    OutboxManager outboxManager;
 
     private static final AtomicInteger counter = new AtomicInteger(0);
 
-//    @WithTransaction
-//    @Scheduled(every = "PT0.001S")
-//    public Uni<Void> insertRandomClientMessage() {
-//        return Multi.createFrom().range(0, 10000).onItem().transformToUniAndConcatenate(it -> {
-//            Message msg = new Message();
-//            msg.setId(UUID.randomUUID());
-//            msg.setClientId(clients.get(0).clientId);
-//            msg.setContent(clients.get(0).message + counter.incrementAndGet());
-//            msg.setSendAt(LocalDateTime.now());
-//            msg.setStatus(Status.PENDING);
-//            return messageRepository.persist(msg).replaceWithVoid();
-//        }).collect().asList().replaceWithVoid();
-//    }
-//
-//    @WithTransaction
-//    @Scheduled(every = "PT0.001S")
-//    public Uni<Void> insertRandomMasterMessage() {
-//
-//        return Multi.createFrom().range(0, 10000).onItem().transformToUniAndConcatenate(it -> {
-//            Message msg = new Message();
-//            msg.setId(UUID.randomUUID());
-//            msg.setClientId(clients.get(1).clientId);
-//            msg.setContent(clients.get(1).message + counter.incrementAndGet());
-//            msg.setSendAt(LocalDateTime.now());
-//            msg.setStatus(Status.PENDING);
-//            return messageRepository.persist(msg).replaceWithVoid();
-//        }).collect().asList().replaceWithVoid();
-//    }
+
+    @Scheduled(every = "1s")
+    public Uni<Void> insertRandomClientMessage() {
+        return Multi.createFrom().range(0, 1000).onItem().transformToUniAndConcatenate(it -> {
+            MessagePayload msg = MessagePayload.builder()
+                    .id(UUID.randomUUID().toString())
+                    .conversationId(UUID.randomUUID().toString())
+                    .sender("System")
+                    .recipient(clients.get(counter.get() % 2).clientId)
+                    .type(MessageType.CHAT)
+                    .origin(MessageOrigin.CLIENT)
+                    .body("Hello-" + counter.incrementAndGet())
+                    .metadata(Map.of())
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            return outboxManager.saveToOutbox(msg).replaceWithVoid();
+        }).collect().asList().replaceWithVoid();
+    }
 
     @Builder
     static class Clients {
