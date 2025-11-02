@@ -2,21 +2,37 @@ package org.hormigas.ws.config;
 
 import io.smallrye.config.ConfigMapping;
 
+import java.time.Duration;
+
 @ConfigMapping(prefix = "processing.messages")
 public interface MessagesConfig {
 
-    Persistence persistence();
-
+    Outbox outbox();
     Scheduler scheduler();
+    Feedback feedback();
+    ChannelRetry channelRetry();
 
-    interface Persistence {
+    interface Outbox {
         int batchSize();
-        int queueSize();
-        int timeoutMin();
+        int sendingQueueSize();
+        int ackQueueSize();
     }
 
     interface Scheduler {
-        int timeIntervalSec();
+        String timeIntervalMs();
+    }
+
+    interface Feedback {
+        int baseIntervalMs();
+        double adjustmentFactor();
+        double recoveryFactor();
+    }
+
+    interface ChannelRetry {
+        boolean retry();
+        int minBackoffMs();
+        int maxBackoffMs();
+        int maxRetries();
     }
 
 }

@@ -1,4 +1,4 @@
-package org.hormigas.ws.core.ports.cache;
+package org.hormigas.ws.ports.cache;
 
 public interface PresenceCache {
 

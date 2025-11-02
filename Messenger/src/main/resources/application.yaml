@@ -35,7 +35,6 @@
           enabled: true
           path: /q/metrics
 
-
   security:
     keycloak:
       cert:
@@ -46,10 +45,19 @@
 
   processing:
     messages:
-      persistence:
-        batch-size: 500
-        queue-size: 5000
-        timeout-min: 1
+      outbox:
+        batch-size: 4000
+        sending-queue-size: 4000
+        ack-queue-size: 2000
       scheduler:
-        time-interval-sec: 1
+        time-interval-ms: "500ms"
+      feedback:
+        base-interval-ms: 500
+        adjustment-factor: 0.9
+        recovery-factor: 1.05
+      channel-retry:
+        max-backoff-ms: 300
+        min-backoff-ms: 1000
+        max-retries: 3
+        retry: true
 

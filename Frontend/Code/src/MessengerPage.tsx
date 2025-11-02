@@ -21,11 +21,11 @@ const MessengerPage: React.FC = () => {
         const connect = () => {
             const quarkusHeaderProtocol = encodeURIComponent(
                 "quarkus-http-upgrade#Authorization#Bearer " + keycloak.token
-            );
-            const ws = new WebSocket("wss://nginx/messenger", [
+             );
+             const ws = new WebSocket("wss://nginx/messenger", [
                 "bearer-token-carrier",
-                quarkusHeaderProtocol,
-            ]);
+                 quarkusHeaderProtocol,
+             ]);
             wsRef.current = ws;
 
             ws.onmessage = (event) => {

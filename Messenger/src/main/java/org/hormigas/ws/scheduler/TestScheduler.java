@@ -1,4 +1,4 @@
-package org.hormigas.ws.core.scheduler;
+package org.hormigas.ws.scheduler;
 
 import io.quarkus.arc.profile.IfBuildProfile;
 import io.quarkus.scheduler.Scheduled;
@@ -7,9 +7,9 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Builder;
+import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.outbox.OutboxManager;
-import org.hormigas.ws.domain.MessageOrigin;
-import org.hormigas.ws.domain.MessagePayload;
+import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.domain.MessageType;
 
 import java.time.LocalDateTime;
@@ -19,11 +19,13 @@ import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 
+@Slf4j
 @ApplicationScoped
 @IfBuildProfile("prod")
 public class TestScheduler {
 
     static final List<Clients> clients;
+    private final AtomicInteger published = new AtomicInteger(0);
 
     static {
         clients = List.of(
@@ -35,24 +37,19 @@ public class TestScheduler {
     }
 
     @Inject
-    OutboxManager outboxManager;
+    OutboxManager<Message> outboxManager;
 
     private static final AtomicInteger counter = new AtomicInteger(0);
-
 
     @Scheduled(every = "1s")
     public Uni<Void> insertRandomClientMessage() {
         return Multi.createFrom().range(0, 1000).onItem().transformToUniAndConcatenate(it -> {
-            MessagePayload msg = MessagePayload.builder()
-                    .id(UUID.randomUUID().toString())
+            Message msg = Message.builder()
+                    .messageId(UUID.randomUUID().toString())
                     .conversationId(UUID.randomUUID().toString())
-                    .sender("System")
-                    .recipient(clients.get(counter.get() % 2).clientId)
-                    .type(MessageType.CHAT)
-                    .origin(MessageOrigin.CLIENT)
-                    .body("Hello-" + counter.incrementAndGet())
-                    .metadata(Map.of())
-                    .createdAt(LocalDateTime.now())
+                    .recipientId(clients.get(counter.get() % 2).clientId)
+                    .type(MessageType.CHAT_OUT)
+                    .payload(new Message.Payload("text", "Hello-" + counter.incrementAndGet()))
                     .build();
 
             return outboxManager.saveToOutbox(msg).replaceWithVoid();

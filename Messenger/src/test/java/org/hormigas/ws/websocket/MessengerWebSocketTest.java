@@ -10,9 +10,9 @@ import io.vertx.core.http.WebSocketConnectOptions;
 import io.vertx.core.http.impl.headers.HeadersMultiMap;
 import io.vertx.core.json.Json;
 import org.hormigas.ws.domen.Message;
-import org.hormigas.ws.mappers.dto.SocketMessage;
-import org.hormigas.ws.security.JwtValidator;
-import org.hormigas.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.ws.mappers.dto.SocketMessage;
+import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
+import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.hormigas.ws.service.ClientMessagePersistence;
 import org.junit.jupiter.api.Test;
 
@@ -77,6 +77,6 @@ class MessengerWebSocketTest {
             vertx.close();
         }
 
-        verify(messagePersistence, times(1)).removeAcknowledgedMessage(eq(message.getId().toString()));
+        verify(messagePersistence, times(1)).removeAcknowledgedMessages(eq(List.of(message.getId().toString())));
     }
 }

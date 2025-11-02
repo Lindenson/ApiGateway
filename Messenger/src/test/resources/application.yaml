@@ -14,7 +14,8 @@
     messages:
       persistence:
         batch-size: 10
-        queue-size: 20
         timeout-min: 1
+        sending-queue-size: 20
+        ack-queue-size: 20
       scheduler:
         time-interval-sec: 1

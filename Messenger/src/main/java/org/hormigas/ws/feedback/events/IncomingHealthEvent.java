@@ -1,4 +1,3 @@
 package org.hormigas.ws.feedback.events;
 
-public record IncomingHealthEvent() {
-}
+public record IncomingHealthEvent(boolean droppedDetected, int droppedCount) {}

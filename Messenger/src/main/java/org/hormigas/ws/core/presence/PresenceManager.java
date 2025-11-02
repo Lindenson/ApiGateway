@@ -1,4 +1,4 @@
-package org.hormigas.ws.core.services.presence;
+package org.hormigas.ws.core.presence;
 
 import io.smallrye.mutiny.Uni;
 

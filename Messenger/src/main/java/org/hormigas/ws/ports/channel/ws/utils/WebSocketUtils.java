@@ -5,10 +5,10 @@ import io.quarkus.websockets.next.WebSocketConnection;
 import io.vertx.core.json.Json;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
-import org.hormigas.ws.domen.Message;
-import org.hormigas.ws.mappers.MessageMapper;
-import org.hormigas.ws.security.JwtValidator;
-import org.hormigas.ws.security.dto.ClientData;
+import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.ports.channel.ws.mappers.MessageMapper;
+import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
+import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;

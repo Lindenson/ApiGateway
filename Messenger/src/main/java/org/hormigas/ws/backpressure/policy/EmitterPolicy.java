@@ -1,4 +1,4 @@
-package org.hormigas.ws.backpressure.emitter.policy;
+package org.hormigas.ws.backpressure.policy;
 
 public interface EmitterPolicy<T> {
     void apply();

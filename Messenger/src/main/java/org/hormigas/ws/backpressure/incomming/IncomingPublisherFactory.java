@@ -4,16 +4,17 @@ import io.smallrye.mutiny.Uni;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.backpressure.PublisherMetrics;
 import org.hormigas.ws.backpressure.factory.PublisherFactoryAbstract;
-import org.hormigas.ws.domain.MessagePayload;
+import org.hormigas.ws.core.context.MessageContext;
+import org.hormigas.ws.domain.Message;
 
 @Slf4j
-public class IncommingPublisherFactory extends PublisherFactoryAbstract<MessagePayload, PublisherMetrics, Uni<Boolean>, MessagePayload> {
+public class IncomingPublisherFactory extends PublisherFactoryAbstract<Message, PublisherMetrics, Uni<MessageContext<Message>>> {
 
-
-    private Uni<Void> p(MessagePayload msg) {
+    @Override
+    protected Uni<Void> publishMessage(Message msg) {
         return getSink().apply(msg)
                 .onItem().invoke(processed -> {
-                    if (processed) {
+                    if (processed.isDone()) {
                         getMetrics().recordDone();
                         log.debug("Incoming message processed");
                     }
@@ -26,8 +27,4 @@ public class IncommingPublisherFactory extends PublisherFactoryAbstract<MessageP
                 .eventually(() -> getMetrics().setQueueSize(getQueueSizeContainer().decrementAndGet()));
     }
 
-    @Override
-    protected Uni<Void> publishMessage(MessagePayload payload) {
-        return null;
-    }
 }

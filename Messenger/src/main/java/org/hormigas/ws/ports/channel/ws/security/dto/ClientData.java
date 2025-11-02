@@ -1,4 +1,4 @@
-package org.hormigas.ws.security.dto;
+package org.hormigas.ws.ports.channel.ws.security.dto;
 
 import lombok.Builder;
 import lombok.Data;

@@ -1,4 +1,4 @@
-package org.hormigas.ws.backpressure.emitter.policy;
+package org.hormigas.ws.backpressure.policy;
 
 import java.util.Queue;
 

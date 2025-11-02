@@ -1,10 +1,9 @@
-package org.hormigas.ws.core.services.idempotency;
+package org.hormigas.ws.core.idempotency;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.core.domain.MessagePayload;
 
-public interface IdempotencyManager {
-    Uni<MessagePayload> addMessage(MessagePayload payload);
-    Uni<MessagePayload> removeMessage(MessagePayload payload);
-    Uni<Boolean> inProgress(MessagePayload payload);
+public interface IdempotencyManager<T> {
+    Uni<T> addMessage(T id);
+    Uni<T> removeMessage(T id);
+    Uni<Boolean> inProgress(T id);
 }

@@ -1,4 +1,4 @@
-package org.hormigas.ws.config;
+package org.hormigas.ws.ports.channel.ws.security.config;
 
 import io.smallrye.config.ConfigMapping;
 

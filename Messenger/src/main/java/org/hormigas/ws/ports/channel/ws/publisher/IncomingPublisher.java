@@ -1,4 +1,4 @@
-package org.hormigas.ws.ports.channel.ws;
+package org.hormigas.ws.ports.channel.ws.publisher;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
@@ -8,80 +8,89 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.backpressure.IncommingPublisherMetrics;
-import org.hormigas.ws.backpressure.api.PublisherFactory;
-import org.hormigas.ws.backpressure.api.PublisherMetrics;
-import org.hormigas.ws.backpressure.api.PublisherWithBackPressure;
+import org.hormigas.ws.backpressure.incomming.IncommingPublisherMetrics;
+import org.hormigas.ws.backpressure.PublisherFactory;
+import org.hormigas.ws.backpressure.PublisherMetrics;
+import org.hormigas.ws.backpressure.PublisherWithBackPressure;
 import org.hormigas.ws.config.MessagesConfig;
-import org.hormigas.ws.core.router.MessageRouter;
-import org.hormigas.ws.domain.MessagePayload;
+import org.hormigas.ws.core.context.MessageContext;
+import org.hormigas.ws.core.router.PipelineRouter;
+import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.feedback.provider.InEventProvider;
+import org.hormigas.ws.feedback.events.IncomingHealthEvent;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.hormigas.ws.backpressure.PublisherFactory.Mode.PARALLEL;
+
 
 @Slf4j
 @ApplicationScoped
-public class IncomingPublisher implements PublisherWithBackPressure<MessagePayload> {
+public class IncomingPublisher implements PublisherWithBackPressure<Message> {
 
 
     @Inject
     MessagesConfig messagesConfig;
 
     @Inject
-    MessageRouter messageRouter;
+    PipelineRouter<Message> pipelineRouter;
 
     @Inject
     MeterRegistry meterRegistry;
 
+    @Inject
+    InEventProvider<IncomingHealthEvent> eventProvider;
+
     private IncommingPublisherMetrics metrics;
 
-    private final AtomicReference<MultiEmitter<? super MessagePayload>> emitter = new AtomicReference<>();
+    private final AtomicReference<MultiEmitter<? super Message>> emitter = new AtomicReference<>();
     private final AtomicBoolean ready = new AtomicBoolean(Boolean.FALSE);
     private final AtomicInteger queueSize = new AtomicInteger(0);
 
     @PostConstruct
     void init() {
 
-        metrics = new IncommingPublisherMetrics(meterRegistry);
+        metrics = new IncommingPublisherMetrics(meterRegistry, eventProvider);
 
-        PublisherFactory.PublisherFactories.<MessagePayload, PublisherMetrics, Uni<Boolean>, MessagePayload>getFactoryFor("incoming")
-                .withProcessor(messageRouter::route)
+        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageContext<Message>>>getFactoryFor("incoming")
+                .withSink(pipelineRouter::route)
                 .withQueueSizeCounter(queueSize)
                 .withEmitter(emitter)
                 .withMetrics(metrics)
+                .withMode(PARALLEL)
                 .build()
                 .subscribe().with(
-                        ignored -> Log.debug("Publishing acknowledging!"),
+                        ignored -> Log.debug("Publishing incoming messages!"),
                         failure -> {
                             metrics.resetQueue();
                             queueSize.set(0);
-                            Log.error("Processor terminated unexpectedly", failure);
+                            Log.error("Incoming publisher terminated unexpectedly", failure);
                         }
                 );
         ready.set(true);
     }
 
     @Override
-    public void publish(MessagePayload msg) {
+    public void publish(Message msg) {
         if (!ready.get()) {
-            Log.warn("Not initialized");
+            Log.warn("Incoming publisher not initialized");
             return;
         }
         if (queueIsFull()) {
             metrics.recordDropped();
-            Log.warn("Acknowledging dropped due to limit");
+            Log.warn("Incoming message dropped due to limit");
             return;
         }
-        Log.debug("Message was published");
+        Log.debug("Incoming message was published");
         emitter.get().emit(msg);
     }
 
     @Override
     public boolean queueIsNotEmpty() {
         if (queueSize.get() > 0) {
-            log.debug("Queue is not empty");
+            log.debug("Incoming message queue is not empty");
             return true;
         }
         return false;
@@ -90,8 +99,8 @@ public class IncomingPublisher implements PublisherWithBackPressure<MessagePaylo
     @Override
     public boolean queueIsFull() {
         metrics.setQueueSize(queueSize.get());
-        if (queueSize.incrementAndGet() > messagesConfig.persistence().ackQueueSize()) {
-            log.debug("Queue is full");
+        if (queueSize.incrementAndGet() > messagesConfig.outbox().ackQueueSize()) {
+            log.debug("Incoming queue is full");
             queueSize.decrementAndGet();
             return true;
         }

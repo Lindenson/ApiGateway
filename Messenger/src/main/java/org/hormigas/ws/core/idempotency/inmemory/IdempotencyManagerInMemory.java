@@ -1,26 +1,44 @@
-package org.hormigas.ws.core.idempotency;
+package org.hormigas.ws.core.idempotency.inmemory;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.domain.MessagePayload;
+import io.vertx.core.impl.ConcurrentHashSet;
+import jakarta.annotation.Nullable;
+import jakarta.enterprise.context.ApplicationScoped;
+import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.core.idempotency.IdempotencyManager;
+import org.hormigas.ws.domain.Message;
 
-import java.util.Map;
+import java.util.Set;
 
-public class IdempotencyManagerInMemory implements IdempotencyManager {
 
-    Map<String, MessagePayload> messages;
+@Slf4j
+@ApplicationScoped
+public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
+
+    private final Set<String> messages = new ConcurrentHashSet<>();
 
     @Override
-    public Uni<MessagePayload> addMessage(MessagePayload payload) {
-        return Uni.createFrom().item(messages.put(payload.id(), payload));
+    public Uni<Message> addMessage(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(message);
+        log.debug("Adding message {}", message);
+        return Uni.createFrom().item(messages.add(message.getMessageId()))
+                .replaceWith(Uni.createFrom().item(message));
     }
 
     @Override
-    public Uni<MessagePayload> removeMessage(MessagePayload payload) {
-        return Uni.createFrom().item(messages.remove(payload.id()));
+    public Uni<Message> removeMessage(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(message);
+        log.debug("Removing message {}", message);
+        return Uni.createFrom().item(messages.remove(message.getMessageId()))
+                .replaceWith(Uni.createFrom().item(message));
     }
 
     @Override
-    public Uni<Boolean> inProgress(MessagePayload payload) {
-        return Uni.createFrom().item(messages.containsKey(payload.id()));
+    public Uni<Boolean> inProgress(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(Boolean.FALSE);
+        return Uni.createFrom().item(messages.contains(message.getMessageId()))
+                .invoke(it -> {
+                    if (it) log.warn("Message: {} in progress", message.getMessageId());
+                });
     }
 }

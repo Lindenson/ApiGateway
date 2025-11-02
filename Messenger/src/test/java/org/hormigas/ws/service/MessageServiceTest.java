@@ -14,6 +14,7 @@ import org.mockito.ArgumentMatchers;
 
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
+import java.util.List;
 import java.util.UUID;
 
 import static org.assertj.core.api.AssertionsForClassTypes.assertThat;
@@ -48,7 +49,7 @@ public class MessageServiceTest {
         Message message = getMessage();
         asserter.execute(() -> messageRepository.persist(message));
         asserter.assertNotNull(() -> messageRepository.findById(message.getId()));
-        asserter.execute(() -> messagePersistence.removeAcknowledgedMessage(message.getId().toString()));
+        asserter.execute(() -> messagePersistence.removeAcknowledgedMessages(List.of(message.getId().toString())));
         asserter.assertNull(() -> messageRepository.findById(message.getId()));
     }
 

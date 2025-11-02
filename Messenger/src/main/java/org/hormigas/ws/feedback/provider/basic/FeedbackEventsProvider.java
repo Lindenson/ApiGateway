@@ -1,8 +1,12 @@
-package org.hormigas.ws.feedback.events;
+package org.hormigas.ws.feedback.provider.basic;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.Event;
 import jakarta.inject.Inject;
+import org.hormigas.ws.feedback.events.IncomingHealthEvent;
+import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
+import org.hormigas.ws.feedback.provider.InEventProvider;
+import org.hormigas.ws.feedback.provider.OutEventProvider;
 
 @ApplicationScoped
 public class FeedbackEventsProvider implements InEventProvider<IncomingHealthEvent>, OutEventProvider<OutgoingHealthEvent> {

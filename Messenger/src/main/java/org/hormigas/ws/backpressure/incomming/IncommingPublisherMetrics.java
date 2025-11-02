@@ -1,11 +1,11 @@
-package org.hormigas.ws.backpressure;
+package org.hormigas.ws.backpressure.incomming;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.hormigas.ws.backpressure.api.PublisherMetrics;
-import org.hormigas.ws.feedback.provider.InEventProvider;
+import org.hormigas.ws.backpressure.PublisherMetrics;
 import org.hormigas.ws.feedback.events.IncomingHealthEvent;
+import org.hormigas.ws.feedback.provider.InEventProvider;
 
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -21,8 +21,7 @@ public class IncommingPublisherMetrics implements PublisherMetrics {
 
 
     public IncommingPublisherMetrics(MeterRegistry registry,
-                                     InEventProvider<IncomingHealthEvent> eventProvider)
-    {
+                                     InEventProvider<IncomingHealthEvent> eventProvider) {
         this.incoming = Counter.builder("incoming_published_total").register(registry);
         this.dropped = Counter.builder("incoming_dropped_total").register(registry);
         this.failed = Counter.builder("incoming_failed_total").register(registry);
@@ -35,6 +34,7 @@ public class IncommingPublisherMetrics implements PublisherMetrics {
         queueSnapshot.record(newSize);
     }
 
+    @Override
     public void resetQueue() {
         queueSnapshot.record(0);
     }
@@ -47,6 +47,7 @@ public class IncommingPublisherMetrics implements PublisherMetrics {
         incoming.increment();
     }
 
+    @Override
     public void recordDropped() {
         dropped.increment();
         eventProvider.fireIn(new IncomingHealthEvent(true, dropSplash.incrementAndGet()));

@@ -9,7 +9,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Getter;
 import org.hormigas.ws.ports.channel.ws.dto.ClientConnection;
-import org.hormigas.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.slf4j.LoggerFactory;
 
 import java.util.Set;

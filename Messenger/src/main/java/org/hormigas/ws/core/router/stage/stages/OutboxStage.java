@@ -1,4 +1,4 @@
-package org.hormigas.ws.core.router.stage.messaging;
+package org.hormigas.ws.core.router.stage.stages;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;

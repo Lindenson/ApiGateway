@@ -1,13 +1,12 @@
-package org.hormigas.ws.core.services.outbox;
+package org.hormigas.ws.core.outbox;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.core.domain.MessagePayload;
 
 import java.util.List;
 
-public interface OutboxManager {
-    Uni<MessagePayload> saveToOutbox(MessagePayload payload);
-    Uni<MessagePayload> removeFromOutbox(MessagePayload payload);
-    Uni<MessagePayload> getFromOutbox();
-    Uni<List<MessagePayload>> getFromOutboxBatch(int batchSize);
+public interface OutboxManager<T> {
+    Uni<T> saveToOutbox(T payload);
+    Uni<T> removeFromOutbox(T message);
+    Uni<T> getFromOutbox();
+    Uni<List<T>> getFromOutboxBatch(int batchSize);
 }

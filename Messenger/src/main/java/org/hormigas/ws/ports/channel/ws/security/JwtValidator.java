@@ -1,4 +1,4 @@
-package org.hormigas.ws.security;
+package org.hormigas.ws.ports.channel.ws.security;
 
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.source.JWKSource;
@@ -12,8 +12,8 @@ import com.nimbusds.jwt.proc.DefaultJWTProcessor;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hormigas.ws.config.KeycloakConfig;
-import org.hormigas.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.ws.security.config.KeycloakConfig;
+import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +71,7 @@ public class JwtValidator {
             }
             return Optional.empty();
         } catch (Exception e) {
-            log.error("Token validation error", e);
+            log.warn("Token validation error", e);
             return Optional.empty();
         }
     }

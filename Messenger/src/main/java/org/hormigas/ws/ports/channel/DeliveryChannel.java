@@ -1,4 +1,7 @@
-package org.hormigas.ws.ports.chanal;
+package org.hormigas.ws.ports.channel;
 
-public interface DeliveryChannal {
+import io.smallrye.mutiny.Uni;
+
+public interface DeliveryChannel<T> {
+    Uni<Boolean> deliver(T channel);
 }

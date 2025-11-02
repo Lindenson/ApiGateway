@@ -5,6 +5,7 @@ management:
   metrics:
     enable:
       http.client.requests.active: false
+
   endpoints:
     web:
       exposure:
@@ -27,6 +28,8 @@ spring:
 
   cloud:
     gateway:
+      metrics:
+        enabled: true
       routes:
         - id: masters-service
           uri: lb://masters
@@ -56,6 +59,18 @@ spring:
                 name: internalCB
                 fallbackUri: forward:/fallback
 
+        - id: messenger-service
+          uri: lb:ws://messengers
+          predicates:
+            - Path=/ws-messenger/**
+          filters:
+            - RewritePath=/ws-messenger/(?<segment>.*),/$\{segment}
+            - PreserveHostHeader
+            - name: CircuitBreaker
+              args:
+                name: internalCB
+                fallbackUri: forward:/fallback
+
     loadbalancer:
       cache:
         ttl: 60s
@@ -70,6 +85,7 @@ spring:
         path:
           masters: /q/health
           clients: /q/health
+          messengers: /q/health
       stats:
         micrometer:
           enabled: true
@@ -83,19 +99,25 @@ spring:
                 serviceId: masters
                 host: master-service
                 port: 8081
-              - instanceId: masters2
-                serviceId: masters
-                host: master-service
-                port: 8087
+#              - instanceId: masters2
+#                serviceId: masters
+#                host: master-service
+#                port: 8087
             clients:
               - instanceId: client1
                 serviceId: clients
                 host: client-service
                 port: 8082
-              - instanceId: client2
-                serviceId: clients
-                host: client-service
-                port: 8089
+#              - instanceId: client2
+#                serviceId: clients
+#                host: client-service
+#                port: 8089
+            messengers:
+              - instanceId: messenger1
+                serviceId: messengers
+                host: messenger
+                port: 8080
+
 
 resilience4j:
   circuitbreaker:
@@ -113,6 +135,8 @@ resilience4j:
 
 logging:
   level:
-    org.springframework.security: WARN
-    org.springframework.web: WARN
-    org.springframework.cloud.loadbalancer.core: WARN
+    org.springframework.cloud.gateway: WARN
+    org.springframework.cloud.gateway.filter: WARN
+    reactor.netty.http.client: WARN
+    org.springframework.cloud.loadbalancer: WARN
+    org.hormigas: INFO

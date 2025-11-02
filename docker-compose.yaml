@@ -58,12 +58,12 @@ services:
     environment:
      JAVA_OPTIONS: >
       -Dcom.sun.management.jmxremote
-      -Dcom.sun.management.jmxremote.port=9010
-      -Dcom.sun.management.jmxremote.rmi.port=9010
-      -Dcom.sun.management.jmxremote.local.only=false
-      -Dcom.sun.management.jmxremote.authenticate=false
       -Dcom.sun.management.jmxremote.ssl=false
-      -Djava.rmi.server.hostname=192.168.1.145
+      -Dcom.sun.management.jmxremote.authenticate=false
+      -Dcom.sun.management.jmxremote.port=9010
+      -Dcom.sun.management.jmxremote.rmi.port=9110
+      -Dcom.sun.management.jmxremote.local.only=false
+
 
   api-gateway:
     build: ./ApiGateway
@@ -106,6 +106,17 @@ services:
     networks:
       - hormigas-net
 
+  redis:
+    image: redis:7
+    container_name: hormigas-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - ./Redis/data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    networks:
+      - hormigas-net
 
 networks:
    hormigas-net:

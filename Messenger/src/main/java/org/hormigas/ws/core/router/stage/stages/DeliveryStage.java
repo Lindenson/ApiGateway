@@ -1,9 +1,10 @@
-package org.hormigas.ws.core.router.stage.messaging;
+package org.hormigas.ws.core.router.stage.stages;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.core.context.MessageContext;
 import org.hormigas.ws.core.idempotency.IdempotencyManager;
@@ -14,6 +15,7 @@ import org.hormigas.ws.ports.channel.DeliveryChannel;
 
 import java.time.Duration;
 
+@Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
 public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
@@ -43,20 +45,23 @@ public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
                 .onFailure().recoverWithItem(ctx);
     }
 
-
     private Uni<Boolean> deliver(MessageContext<Message> ctx) {
-        Uni<Boolean> deliveryResult = isDeliverable(ctx).onItem().transformToUni(canDeliver ->
-                canDeliver? channel.deliver(ctx.getPayload()) : Uni.createFrom().item(Boolean.FALSE));
-        return messagesConfig.channelRetry().retry()? applyRetryPolicy(deliveryResult): deliveryResult;
+        Uni<Boolean> deliveryResult = isDeliverable(ctx)
+                .onItem().transformToUni(canDeliver ->
+                        canDeliver ? channel.deliver(ctx.getPayload())
+                                : Uni.createFrom().item(Boolean.FALSE));
+        return messagesConfig.channelRetry().retry()
+                ? applyRetryPolicy(deliveryResult)
+                : deliveryResult;
     }
 
     private Uni<Boolean> isDeliverable(MessageContext<Message> ctx) {
         Message message = ctx.getPayload();
-        Uni<Boolean> isPresent = presenceManager.isPresent(message.getRecipientId());
-        Uni<Boolean> inProgress = idempotencyManager.inProgress(message);
-
-        return Uni.combine().all().unis(isPresent, inProgress).asTuple().onItem().transform(tuple ->
-                (tuple.getItem1() && !tuple.getItem2())? Boolean.TRUE:Boolean.FALSE);
+        return idempotencyManager.inProgress(message)
+                .flatMap(progressing -> {
+                    if (progressing) return Uni.createFrom().item(Boolean.FALSE);
+                    else return presenceManager.isPresent(message.getRecipientId());
+                });
     }
 
 

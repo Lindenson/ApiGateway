@@ -1,8 +1,7 @@
 package org.hormigas.ws.core.router.stage;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.core.router.context.MessageContext;
 
-public interface RouteStage<T> {
+public interface PipelineStage<T> {
     Uni<T> apply(T ctx);
 }

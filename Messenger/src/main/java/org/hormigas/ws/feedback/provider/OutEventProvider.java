@@ -1,4 +1,4 @@
-package org.hormigas.ws.feedback.events;
+package org.hormigas.ws.feedback.provider;
 
 public interface OutEventProvider<T> {
     void fireOut(T event);

@@ -1,4 +1,4 @@
-package org.hormigas.ws.core.router.stage.messaging;
+package org.hormigas.ws.core.router.stage.stages;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -16,6 +16,8 @@ public class CacheStage implements PipelineStage<MessageContext<Message>> {
 
     @Override
     public Uni<MessageContext<Message>> apply(MessageContext<Message> ctx) {
+        // don't cache if not delivered
+        if (!ctx.isDelivered()) return Uni.createFrom().item(ctx);
         return manager.addMessage(ctx.getPayload())
                 .onItem().invoke(() -> ctx.setCached(true))
                 .replaceWith(ctx)

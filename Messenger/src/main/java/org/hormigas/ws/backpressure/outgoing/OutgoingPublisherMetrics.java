@@ -1,10 +1,10 @@
-package org.hormigas.ws.backpressure;
+package org.hormigas.ws.backpressure.outgoing;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.hormigas.ws.backpressure.api.PublisherMetrics;
+import org.hormigas.ws.backpressure.PublisherMetrics;
 import org.hormigas.ws.feedback.provider.OutEventProvider;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
 
@@ -40,6 +40,7 @@ public class OutgoingPublisherMetrics implements PublisherMetrics {
         queueSnapshot.record(newSize);
     }
 
+    @Override
     public void resetQueue() {
         queueSnapshot.record(0);
     }
@@ -52,6 +53,7 @@ public class OutgoingPublisherMetrics implements PublisherMetrics {
         outgoing.increment();
     }
 
+    @Override
     public void recordDropped() {
         dropped.increment();
         eventProvider.fireOut(new OutgoingHealthEvent(true, dropSplash.incrementAndGet()));
