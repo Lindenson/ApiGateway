@@ -4,20 +4,20 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.hormigas.ws.core.idempotency.IdempotencyManager;
-import org.hormigas.ws.core.context.MessageContext;
+import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.domain.Message;
 
 @ApplicationScoped
 @RequiredArgsConstructor
-public class CleanCacheStage implements PipelineStage<MessageContext<Message>> {
+public class CleanCacheStage implements PipelineStage<RouterContext<Message>> {
 
     private final IdempotencyManager<Message> idempotencyManager;
 
     @Override
-    public Uni<MessageContext<Message>> apply(MessageContext<Message> ctx) {
+    public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
             return idempotencyManager.removeMessage(ctx.getPayload())
-                    .onItem().invoke(() -> ctx.setCached(true))
+                    .onItem().invoke(ctx::setCached)
                     .replaceWith(ctx)
                     .onFailure().invoke(ctx::setError)
                     .onFailure().recoverWithItem(ctx);

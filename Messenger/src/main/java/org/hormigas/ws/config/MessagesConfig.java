@@ -7,6 +7,8 @@ import java.time.Duration;
 @ConfigMapping(prefix = "processing.messages")
 public interface MessagesConfig {
 
+    //toDo навсти порядок
+
     Outbox outbox();
     Scheduler scheduler();
     Feedback feedback();

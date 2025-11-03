@@ -6,19 +6,22 @@ import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessagesConfig;
-import org.hormigas.ws.core.context.MessageContext;
 import org.hormigas.ws.core.idempotency.IdempotencyManager;
 import org.hormigas.ws.core.presence.PresenceManager;
+import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
+import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.ports.channel.DeliveryChannel;
+import org.hormigas.ws.core.channel.DeliveryChannel;
 
 import java.time.Duration;
+
+import static org.hormigas.ws.core.router.stage.StageStatus.SKIPPED;
 
 @Slf4j
 @ApplicationScoped
 @RequiredArgsConstructor
-public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
+public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
     private final MessagesConfig messagesConfig;
     private final DeliveryChannel<Message> channel;
@@ -37,7 +40,7 @@ public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
     }
 
     @Override
-    public Uni<MessageContext<Message>> apply(MessageContext<Message> ctx) {
+    public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
         return deliver(ctx)
                 .invoke(ctx::setDelivered)
                 .replaceWith(ctx)
@@ -45,17 +48,13 @@ public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
                 .onFailure().recoverWithItem(ctx);
     }
 
-    private Uni<Boolean> deliver(MessageContext<Message> ctx) {
-        Uni<Boolean> deliveryResult = isDeliverable(ctx)
-                .onItem().transformToUni(canDeliver ->
-                        canDeliver ? channel.deliver(ctx.getPayload())
-                                : Uni.createFrom().item(Boolean.FALSE));
-        return messagesConfig.channelRetry().retry()
-                ? applyRetryPolicy(deliveryResult)
-                : deliveryResult;
+    private Uni<StageStatus> deliver(RouterContext<Message> ctx) {
+        var deliveryResult = isDeliverable(ctx).onItem().transformToUni(canDeliver ->
+                canDeliver ? channel.deliver(ctx.getPayload()) : Uni.createFrom().item(SKIPPED));
+        return messagesConfig.channelRetry().retry() ? applyRetryPolicy(deliveryResult) : deliveryResult;
     }
 
-    private Uni<Boolean> isDeliverable(MessageContext<Message> ctx) {
+    private Uni<Boolean> isDeliverable(RouterContext<Message> ctx) {
         Message message = ctx.getPayload();
         return idempotencyManager.inProgress(message)
                 .flatMap(progressing -> {
@@ -65,7 +64,7 @@ public class DeliveryStage implements PipelineStage<MessageContext<Message>> {
     }
 
 
-    private Uni<Boolean> applyRetryPolicy(Uni<Boolean> uni) {
+    private Uni<StageStatus> applyRetryPolicy(Uni<StageStatus> uni) {
         return uni.onFailure().retry().withBackOff(MIN_BACKOFF, MAX_BACKOFF).atMost(MAX_RETRIES);
     }
 }

@@ -4,11 +4,14 @@ import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.outbox.OutboxManager;
+import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+
+import static org.hormigas.ws.core.router.stage.StageStatus.*;
 
 
 @Slf4j
@@ -17,18 +20,23 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
     private final ConcurrentMap<String, Message> messages = new ConcurrentHashMap<>();
 
     @Override
-    public Uni<Message> saveToOutbox(@Nullable Message message) {
-        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(message);
+    public Uni<StageStatus> saveToOutbox(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
+
+        log.debug("Saving message {}", message);
         return Uni.createFrom().item(messages.put(message.getMessageId(), message))
-                .replaceWith(Uni.createFrom().item(message));
+                .onItem().transform(it -> it == null? SUCCESS : SKIPPED);
     }
 
     @Override
-    public Uni<Message> removeFromOutbox(@Nullable Message message) {
+    public Uni<StageStatus> removeFromOutbox(@Nullable Message message) {
         log.error("OUTBOX SIZE BEFORE: {}", messages.size());
-        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(message);
-        Uni<Message> replacedWith = Uni.createFrom().item(messages.remove(message.getMessageId()))
-                .replaceWith(message);
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
+
+        log.debug("Removing message {}", message);
+        var replacedWith = Uni.createFrom().item(messages.remove(message.getMessageId()))
+                .onItem().transform(it -> it != null? SUCCESS : SKIPPED);
+
         log.error("OUTBOX SIZE AFTER: {}", messages.size());
         return replacedWith;
     }

@@ -4,12 +4,16 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.core.context.MessageContext;
 import org.hormigas.ws.core.router.PipelineResolver;
 import org.hormigas.ws.core.router.PipelineRouter;
+import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.stages.*;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.MessageEnvelope;
 import org.hormigas.ws.domain.MessageType;
+
+import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
+import static org.hormigas.ws.core.router.stage.StageStatus.UNKNOWN;
 
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -25,41 +29,48 @@ public class MessagePipelineRouter implements PipelineRouter<Message> {
     private final FinalStage finalStage;
 
     @Override
-    public Uni<MessageContext<Message>> route(Message message) {
+    public Uni<MessageEnvelope<Message>> route(Message message) {
         var pipeline = PipelineResolver.resolvePipeline(message);
-        var context = MessageContext.<Message>builder()
+        var context = RouterContext.<Message>builder()
+                .cached(UNKNOWN)
+                .persisted(UNKNOWN)
+                .delivered(UNKNOWN)
+                .done(false)
                 .pipelineType(pipeline)
                 .payload(message).build();
 
         log.debug("Routing message {} to a pipeline {}", message.getMessageId(), pipeline);
 
-        return switch (pipeline) {
+        var processed = switch (pipeline) {
             case PERSISTENT_OUT -> outboxStage.apply(context)
                     .onItem().transformToUni(deliveryStage::apply)
                     .onItem().transformToUni(cacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply)
-                    .onItem().invoke(this::logResult);
+                    .onItem().transformToUni(finalStage::apply);
 
             case CACHED_OUT -> deliveryStage.apply(context)
                     .onItem().transformToUni(cacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply)
-                    .onItem().invoke(this::logResult);
+                    .onItem().transformToUni(finalStage::apply);
 
             case DIRECT_OUT -> deliveryStage.apply(context)
-                    .onItem().transformToUni(finalStage::apply)
-                    .onItem().invoke(this::logResult);
+                    .onItem().transformToUni(finalStage::apply);
 
             case PERSISTENT_ACK -> cleanOutboxStage.apply(context)
                     .onItem().transformToUni(cleanCacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply)
-                    .onItem().invoke(this::logResult);
+                    .onItem().transformToUni(finalStage::apply);
 
             case CACHED_ACK -> cleanCacheStage.apply(context)
-                    .onItem().invoke(this::logResult);
+                    .onItem().transformToUni(finalStage::apply);
         };
+
+        return
+                processed.onItem().invoke(this::logResult)
+                        .onItem().transform(toBeMapped -> MessageEnvelope.<Message>builder()
+                                .message(toBeMapped.getPayload())
+                                .processed(toBeMapped.isDone())
+                                .build());
     }
 
-    private void logResult(MessageContext<Message> ctx) {
+    private void logResult(RouterContext<Message> ctx) {
         String messageId = ctx.getPayload().getMessageId();
 
         if (ctx.hasError()) {
@@ -80,48 +91,48 @@ public class MessagePipelineRouter implements PipelineRouter<Message> {
         }
     }
 
-    private void logPersistenceFlow(MessageContext<Message> ctx, String messageId) {
+    private void logPersistenceFlow(RouterContext<Message> ctx, String messageId) {
         logPersistence(ctx, messageId);
         logCache(ctx, messageId);
         logDelivery(ctx, messageId);
     }
 
-    private void logCachedFlow(MessageContext<Message> ctx, String messageId) {
+    private void logCachedFlow(RouterContext<Message> ctx, String messageId) {
         logCache(ctx, messageId);
         logDelivery(ctx, messageId);
     }
 
-    private void logPersistenceCleanup(MessageContext<Message> ctx, String messageId) {
+    private void logPersistenceCleanup(RouterContext<Message> ctx, String messageId) {
         logOutboxCleanup(ctx, messageId);
         logCacheCleanup(ctx, messageId);
     }
 
-    private void logPersistence(MessageContext<Message> ctx, String messageId) {
-        if (!ctx.isPersisted()) {
+    private void logPersistence(RouterContext<Message> ctx, String messageId) {
+        if (!ctx.getPersisted().equals(SUCCESS)) {
             log.warn("Message {} was not persisted", messageId);
         }
     }
 
-    private void logCache(MessageContext<Message> ctx, String messageId) {
-        if (!ctx.isCached()) {
+    private void logCache(RouterContext<Message> ctx, String messageId) {
+        if (!ctx.getCached().equals(SUCCESS)) {
             log.warn("Message {} was not cached", messageId);
         }
     }
 
-    private void logDelivery(MessageContext<Message> ctx, String messageId) {
-        if (!ctx.isDelivered()) {
+    private void logDelivery(RouterContext<Message> ctx, String messageId) {
+        if (!ctx.getDelivered().equals(SUCCESS)) {
             log.warn("Message {} was not delivered", messageId);
         }
     }
 
-    private void logOutboxCleanup(MessageContext<Message> ctx, String messageId) {
-        if (!ctx.isPersisted()) {
+    private void logOutboxCleanup(RouterContext<Message> ctx, String messageId) {
+        if (!ctx.getPersisted().equals(SUCCESS)) {
             log.warn("Message {} was not cleaned from outbox", messageId);
         }
     }
 
-    private void logCacheCleanup(MessageContext<Message> ctx, String messageId) {
-        if (!ctx.isCached()) {
+    private void logCacheCleanup(RouterContext<Message> ctx, String messageId) {
+        if (!ctx.getCached().equals(SUCCESS)) {
             log.warn("Message {} was not cleaned from cache", messageId);
         }
     }

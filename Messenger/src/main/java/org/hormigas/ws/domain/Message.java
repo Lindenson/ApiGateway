@@ -1,48 +1,53 @@
 package org.hormigas.ws.domain;
 
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import lombok.*;
 
 import java.util.Map;
 
-
-@Data
 @Builder
-@NoArgsConstructor
+@Getter
+@EqualsAndHashCode
+@NoArgsConstructor(force = true)
 @AllArgsConstructor
+@JsonInclude(JsonInclude.Include.NON_NULL)
+@JsonDeserialize(builder = Message.MessageBuilder.class)
 public class Message {
-    private String messageId;
-    private String correlationId;
-    private String conversationId;
 
-    private MessageType type;
+    private final String messageId;
+    private final String correlationId;
+    private final String conversationId;
 
-    private long clientTimestamp;
-    private String clientTimezone;
-    private long serverTimestamp;
-    private long previousServerTimestamp;
-    private long ttl;
+    private final MessageType type;
 
-    private boolean requiresAck;
-    private boolean durable;
-    private boolean persistent;
+    private final long clientTimestamp;
+    private final String clientTimezone;
+    private final long serverTimestamp;
+    private final long previousServerTimestamp;
+    private final long ttl;
 
-    private int creditsAvailable;
+    private final boolean requiresAck;
+    private final boolean durable;
+    private final boolean persistent;
 
-    private String senderId;
-    private String recipientId;
+    private final int creditsAvailable;
 
-    private Payload payload;
-    private Map<String, String> meta;
+    private final String senderId;
+    private final String recipientId;
 
-    @Data
+    private final Payload payload;
+    private final Map<String, String> meta;
+
+    @Getter
     @Builder
-    @NoArgsConstructor
+    @EqualsAndHashCode
+    @NoArgsConstructor(force = true)
     @AllArgsConstructor
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    @JsonDeserialize(builder = Payload.PayloadBuilder.class)
     public static class Payload {
-        private String kind;
-        private String body;
+        private final String kind;
+        private final String body;
     }
 }

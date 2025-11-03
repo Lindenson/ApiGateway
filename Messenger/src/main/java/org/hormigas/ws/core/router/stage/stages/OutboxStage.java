@@ -4,20 +4,20 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.hormigas.ws.core.outbox.OutboxManager;
-import org.hormigas.ws.core.context.MessageContext;
+import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.domain.Message;
 
 @ApplicationScoped
 @RequiredArgsConstructor
-public class OutboxStage implements PipelineStage<MessageContext<Message>> {
+public class OutboxStage implements PipelineStage<RouterContext<Message>> {
 
     private final OutboxManager<Message> outboxManager;
 
     @Override
-    public Uni<MessageContext<Message>> apply(MessageContext<Message> ctx) {
+    public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
         return outboxManager.saveToOutbox(ctx.getPayload())
-                .onItem().invoke(() -> ctx.setPersisted(true))
+                .onItem().invoke(ctx::setPersisted)
                 .replaceWith(ctx)
                 .onFailure().invoke(ctx::setError)
                 .onFailure().recoverWithItem(ctx);

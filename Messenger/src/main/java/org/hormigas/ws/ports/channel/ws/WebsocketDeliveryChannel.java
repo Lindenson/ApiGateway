@@ -1,22 +1,33 @@
 package org.hormigas.ws.ports.channel.ws;
 
+import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpClosedException;
 import io.vertx.core.json.JsonObject;
+import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hormigas.ws.domain.*;
-import org.hormigas.ws.ports.channel.DeliveryChannel;
+import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.core.channel.DeliveryChannel;
+import org.hormigas.ws.core.router.stage.StageStatus;
+import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
+import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
+import org.hormigas.ws.ports.channel.presense.inmemory.LocalRegistry;
 import org.hormigas.ws.ports.channel.ws.publisher.IncomingPublisher;
-import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
-import org.slf4j.LoggerFactory;
+import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 
+import java.nio.Buffer;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import static org.hormigas.ws.core.router.stage.StageStatus.*;
+
+@Slf4j
 @WebSocket(path = "/ws")
 @ApplicationScoped
 public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
@@ -28,9 +39,16 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
     WebSocketUtils webSocketUtils;
 
     @Inject
-    ClientConnectionRegistry connectionRegistry;
+    MeterRegistry meterRegistry;
 
-    private static final org.slf4j.Logger log = LoggerFactory.getLogger(WebsocketDeliveryChannel.class);
+
+    ClientsRegistry<WebSocketConnection> connectionRegistry;
+
+
+    @PostConstruct
+    void init() {
+        connectionRegistry = new LocalRegistry<WebSocketConnection>(meterRegistry);
+    }
 
 
     @OnOpen
@@ -53,9 +71,20 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
 
 
     @OnTextMessage
-    public Uni<Void> onMessage(String message) {
+    public Uni<Void> onMessage(String msgString, WebSocketConnection conn) {
         try {
-            JsonObject json = new JsonObject(message);
+            ClientSession<WebSocketConnection> clientSession = connectionRegistry.getClientSessionByConnection(conn);
+            if (clientSession == null) {
+                log.warn("Received message from unregistered connection: {}", conn.id());
+                return Uni.createFrom().voidItem();
+            }
+
+            if (!clientSession.tryConsume()) {
+                log.warn("Rate limit exceeded for client {}", clientSession.getClientId());
+                return Uni.createFrom().voidItem();
+            }
+
+            JsonObject json = new JsonObject(msgString);
             if (json.containsKey("ackId")) {
                 String ackId = json.getString("ackId");
 
@@ -68,29 +97,28 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
                 incomingPublisher.publish(incomingMessage);
             }
         } catch (Exception e) {
-            log.error("Invalid message format: {}", message, e);
+            log.error("Invalid message format: {}", msgString, e);
         }
         return Uni.createFrom().voidItem();
     }
 
     @Override
-    public Uni<Boolean> deliver(Message msg) {
+    public Uni<StageStatus> deliver(Message msg) {
         log.debug("Sending message {}", msg);
 
-        List<Uni<Void>> tasks = connectionRegistry.getConnections().stream()
-                .filter(clientConnection -> clientConnection.getId().equals(msg.getRecipientId()))
-                .map(conn -> sendWithPayload(conn.getWsConnection(), msg))
+        List<Uni<Void>> sessions = connectionRegistry.streamByClientId(msg.getRecipientId())
+                .map(conn -> sendWithPayload(conn.getSession(), msg))
                 .collect(Collectors.toList());
 
-        if (tasks.isEmpty()) {
+        if (sessions.isEmpty()) {
             log.warn("No connection found for id {}", msg.getRecipientId());
-            return Uni.createFrom().item(Boolean.FALSE);
+            return Uni.createFrom().item(SKIPPED);
         }
 
-        return Uni.combine().all().unis(tasks).discardItems().replaceWith(Boolean.TRUE)
+        return Uni.combine().all().unis(sessions).discardItems().replaceWith(SUCCESS)
                 .onFailure().recoverWithItem(error -> {
                     log.error("Error while sending message", error);
-                    return Boolean.FALSE;
+                    return FAILED;
                 });
     }
 

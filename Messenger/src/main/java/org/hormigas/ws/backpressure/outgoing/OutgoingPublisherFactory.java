@@ -3,18 +3,18 @@ package org.hormigas.ws.backpressure.outgoing;
 import io.smallrye.mutiny.Uni;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.backpressure.factory.PublisherFactoryAbstract;
-import org.hormigas.ws.core.context.MessageContext;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.MessageEnvelope;
 
 @Slf4j
-public class OutgoingPublisherFactory extends PublisherFactoryAbstract<Message, OutgoingPublisherMetrics, Uni<MessageContext<Message>>> {
+public class OutgoingPublisherFactory extends PublisherFactoryAbstract<Message, OutgoingPublisherMetrics, Uni<MessageEnvelope<Message>>> {
 
     @Override
     protected Uni<Void> publishMessage(Message msg) {
         long start = System.nanoTime();
         return getSink().apply(msg)
                 .onItem().invoke(processed -> {
-                    if (processed.isDone()) {
+                    if (processed.isProcessed()) {
                         log.debug("Outgoing message processed");
                         getMetrics().recordProcessingTime(System.nanoTime() - start);
                         getMetrics().recordDone();

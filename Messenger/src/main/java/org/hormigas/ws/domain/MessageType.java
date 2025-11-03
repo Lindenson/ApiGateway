@@ -1,6 +1,7 @@
 package org.hormigas.ws.domain;
 
 public enum MessageType {
+
     CHAT_OUT,
     CHAT_IN,
     CHAT_ASK,

@@ -13,9 +13,9 @@ import org.hormigas.ws.backpressure.PublisherFactory;
 import org.hormigas.ws.backpressure.PublisherMetrics;
 import org.hormigas.ws.backpressure.PublisherWithBackPressure;
 import org.hormigas.ws.config.MessagesConfig;
-import org.hormigas.ws.core.context.MessageContext;
 import org.hormigas.ws.core.router.PipelineRouter;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.MessageEnvelope;
 import org.hormigas.ws.feedback.provider.InEventProvider;
 import org.hormigas.ws.feedback.events.IncomingHealthEvent;
 
@@ -54,7 +54,7 @@ public class IncomingPublisher implements PublisherWithBackPressure<Message> {
 
         metrics = new IncommingPublisherMetrics(meterRegistry, eventProvider);
 
-        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageContext<Message>>>getFactoryFor("incoming")
+        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageEnvelope<Message>>>getFactoryFor("incoming")
                 .withSink(pipelineRouter::route)
                 .withQueueSizeCounter(queueSize)
                 .withEmitter(emitter)
