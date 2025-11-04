@@ -4,12 +4,9 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.hormigas.ws.core.router.context.RouterContext;
-import org.hormigas.ws.core.router.PipelineResolver;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.FAILED;
 import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
 
 
@@ -19,15 +16,30 @@ public class FinalStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-        PipelineResolver.PipelineType pipelineType = ctx.getPipelineType();
-
         return Uni.createFrom().item(() -> {
+            boolean done = false;
 
-            var done = switch (pipelineType) {
-                case PERSISTENT_OUT, CACHED_OUT, DIRECT_OUT -> ctx.getDelivered().equals(SUCCESS);
-                case PERSISTENT_ACK -> ctx.getPersisted().equals(SUCCESS);
-                case CACHED_ACK -> ctx.getCached().equals(SUCCESS);
-            };
+            if (ctx.hasError()) {
+                ctx.setDone(false);
+                return ctx;
+            }
+
+            var pipelineType = ctx.getPipelineType();
+
+            switch (pipelineType) {
+                case INBOUND_PERSISTENT ->
+                        done = ctx.getPersisted() == SUCCESS;
+                case INBOUND_CACHED ->
+                        done = ctx.getDelivered() == SUCCESS;
+                case OUTBOUND_CACHED, OUTBOUND_DIRECT ->
+                        done = ctx.getDelivered() == SUCCESS;
+                case ACK_PERSISTENT ->
+                        done = ctx.getPersisted() == SUCCESS;
+                case ACK_CACHED ->
+                        done = ctx.getCached() == SUCCESS;
+                default ->
+                        done = false;
+            }
 
             ctx.setDone(done);
             return ctx;

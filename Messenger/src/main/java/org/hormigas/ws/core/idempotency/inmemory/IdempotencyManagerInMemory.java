@@ -31,10 +31,10 @@ public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
 
     @Override
     public Uni<StageStatus> removeMessage(@Nullable Message message) {
-        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
+        if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
 
         log.debug("Removing message {}", message);
-        return Uni.createFrom().item(messages.remove(message.getMessageId()))
+        return Uni.createFrom().item(messages.remove(message.getCorrelationId()))
                 .onItem().transform(it -> it? SUCCESS : SKIPPED);
     }
 

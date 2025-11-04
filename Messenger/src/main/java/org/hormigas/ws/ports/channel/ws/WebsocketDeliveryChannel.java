@@ -1,10 +1,10 @@
 package org.hormigas.ws.ports.channel.ws;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Uni;
 import io.vertx.core.http.HttpClosedException;
-import io.vertx.core.json.JsonObject;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -12,15 +12,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.channel.DeliveryChannel;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
 import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
 import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
 import org.hormigas.ws.ports.channel.presense.inmemory.LocalRegistry;
+import org.hormigas.ws.ports.channel.validator.ChannelValidator;
+import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
 import org.hormigas.ws.ports.channel.ws.publisher.IncomingPublisher;
 import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 
-import java.nio.Buffer;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -41,13 +41,20 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
     @Inject
     MeterRegistry meterRegistry;
 
+    @Inject
+    ObjectMapper objectMapper;
 
+    @Inject
+    ChannelValidator<Message> channelValidator;
+
+    @Inject
+    ChannelFilter<Message, WebSocketConnection> channelFilter;
+    
     ClientsRegistry<WebSocketConnection> connectionRegistry;
-
 
     @PostConstruct
     void init() {
-        connectionRegistry = new LocalRegistry<WebSocketConnection>(meterRegistry);
+        connectionRegistry = new LocalRegistry<>(meterRegistry);
     }
 
 
@@ -71,33 +78,26 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
 
 
     @OnTextMessage
-    public Uni<Void> onMessage(String msgString, WebSocketConnection conn) {
+    public Uni<Void> onMessage(String rawJson, WebSocketConnection conn) {
+        log.debug("Receiving message {}", rawJson);
+        log.error("!!Connected {}", connectionRegistry.countAllClients());
         try {
             ClientSession<WebSocketConnection> clientSession = connectionRegistry.getClientSessionByConnection(conn);
             if (clientSession == null) {
                 log.warn("Received message from unregistered connection: {}", conn.id());
                 return Uni.createFrom().voidItem();
             }
-
-            if (!clientSession.tryConsume()) {
-                log.warn("Rate limit exceeded for client {}", clientSession.getClientId());
+            Message message = objectMapper.readValue(rawJson, Message.class);
+            if (!channelValidator.valid(message)) {
+                log.warn("Message didn't pass validation {}", message.getMessageId());
                 return Uni.createFrom().voidItem();
             }
-
-            JsonObject json = new JsonObject(msgString);
-            if (json.containsKey("ackId")) {
-                String ackId = json.getString("ackId");
-
-                Message incomingMessage = Message
-                        .builder()
-                        .messageId(ackId)
-                        .type(MessageType.CHAT_ASK)
-                        .build();
-
-                incomingPublisher.publish(incomingMessage);
+            if (!channelFilter.filter(message, clientSession)) {
+                return Uni.createFrom().voidItem();
             }
+            incomingPublisher.publish(message);
         } catch (Exception e) {
-            log.error("Invalid message format: {}", msgString, e);
+            log.error("Invalid message format: {}", rawJson, e);
         }
         return Uni.createFrom().voidItem();
     }
@@ -105,7 +105,6 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
     @Override
     public Uni<StageStatus> deliver(Message msg) {
         log.debug("Sending message {}", msg);
-
         List<Uni<Void>> sessions = connectionRegistry.streamByClientId(msg.getRecipientId())
                 .map(conn -> sendWithPayload(conn.getSession(), msg))
                 .collect(Collectors.toList());
@@ -116,6 +115,7 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
         }
 
         return Uni.combine().all().unis(sessions).discardItems().replaceWith(SUCCESS)
+                .onItem().invoke(() -> log.debug("Sent message {}", msg.getMessageId()))
                 .onFailure().recoverWithItem(error -> {
                     log.error("Error while sending message", error);
                     return FAILED;

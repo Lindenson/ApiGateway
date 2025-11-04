@@ -15,7 +15,7 @@ import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.core.router.publisher.RoutingPublisher;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.feedback.regulator.FeedbackRegulator;
+import org.hormigas.ws.feedback.Regulator;
 
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -29,7 +29,7 @@ public class RoutingScheduler {
     RoutingPublisher publisher;
 
     @Inject
-    FeedbackRegulator regulator;
+    Regulator regulator;
 
     @Inject
     OutboxManager<Message> outboxManager;
@@ -77,7 +77,7 @@ public class RoutingScheduler {
 
     @Scheduled(every = "${processing.messages.scheduler.time-interval-ms}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void pollOutbox() {
-        long delayMs = regulator.getCurrentInterval().toMillis();
+        long delayMs = regulator.getCurrentIntervalMs().toMillis();
         currentDelayMs.set(delayMs);
         pollCounter.increment();
 

@@ -6,7 +6,6 @@ import io.vertx.core.json.Json;
 import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.ports.channel.ws.mappers.MessageMapper;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
 import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
 import org.slf4j.LoggerFactory;
@@ -26,7 +25,7 @@ public class WebSocketUtils {
 
     public Optional<String> encodeMessage(Message message) {
         try {
-            return Optional.of(Json.encode(MessageMapper.map(message)));
+            return Optional.of(Json.encode(message));
         } catch (Exception e) {
             log.error("Invalid message format: {}", message, e);
             return Optional.empty();

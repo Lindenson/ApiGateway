@@ -10,4 +10,5 @@ public interface ClientsRegistry<T> {
     void registerClient(ClientData clientData, T connection);
     Stream<ClientSession<T>> streamByClientId(String id);
     ClientSession<T> getClientSessionByConnection(T connection);
+    long countAllClients();
 }

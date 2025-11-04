@@ -12,14 +12,18 @@ import static org.hormigas.ws.core.router.stage.StageStatus.UNKNOWN;
 @Data
 @Builder
 public class RouterContext<T> {
-
     @Getter
     private final T payload;
-
-    private StageStatus delivered;
-    private StageStatus persisted;
-    private StageStatus cached;
-    private boolean done;
+    @Builder.Default
+    private StageStatus delivered = UNKNOWN;
+    @Builder.Default
+    private StageStatus persisted = UNKNOWN;
+    @Builder.Default
+    private StageStatus cached = UNKNOWN;
+    @Builder.Default
+    private StageStatus acknowledged = UNKNOWN;
+    @Builder.Default
+    private boolean done = false;
 
     private PipelineResolver.PipelineType pipelineType;
     private Throwable error;

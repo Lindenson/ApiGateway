@@ -21,32 +21,38 @@ public class MessagePipelineResolver implements PipelineResolver<Message, Messag
 
     public MessagePipelineResolver() {
 
-        // ASK routing
-        routingMatrix.put(SIGNAL_ASK, CACHED_ACK);
-        routingMatrix.put(CHAT_ASK, PERSISTENT_ACK);
-
+        // OUT
         // CHAT routing
-        routingMatrix.put(CHAT_OUT, CACHED_OUT);
-        routingMatrix.put(CHAT_IN, PERSISTENT_OUT);
-
+        routingMatrix.put(CHAT_OUT, OUTBOUND_CACHED);
         // SIGNAL routing
-        routingMatrix.put(SIGNAL_OUT, CACHED_OUT);
-
+        routingMatrix.put(SIGNAL_OUT, OUTBOUND_CACHED);
         // SERVICE routing
-        routingMatrix.put(SERVICE_OUT, DIRECT_OUT);
+        routingMatrix.put(SERVICE_OUT, OUTBOUND_DIRECT);
+
+        // IN
+        // CHAT routing
+        routingMatrix.put(CHAT_IN, INBOUND_PERSISTENT);
+        // SIGNAL routing
+        routingMatrix.put(SIGNAL_IN, INBOUND_CACHED);
+        // ACK
+        routingMatrix.put(SIGNAL_ACK, ACK_CACHED);
+        routingMatrix.put(CHAT_ACK, ACK_PERSISTENT);
+
+
+
     }
 
     @Override
     public PipelineType resolvePipeline(Message message) {
         if (message == null || message.getType() == null) {
-            throw new IllegalArgumentException("Message or its type/origin cannot be null");
+            log.error("Skipping invalid message: {}", message);
+            return SKIP;
         }
 
         PipelineType policy = routingMatrix.get(message.getType());
-
         if (policy == null) {
-            log.warn("No routing policy defined for message type={}", message.getType());
-            return DIRECT_OUT;
+            log.error("No routing policy defined for message type={}", message.getType());
+            return SKIP;
         }
 
         log.debug("Resolved policy {} for message type={}", policy, message.getType());

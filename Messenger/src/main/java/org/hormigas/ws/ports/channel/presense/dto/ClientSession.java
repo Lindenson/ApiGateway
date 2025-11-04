@@ -1,29 +1,22 @@
 package org.hormigas.ws.ports.channel.presense.dto;
 
+import lombok.Builder;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import org.hormigas.ws.credits.Credits;
-import org.hormigas.ws.credits.lazy.LazyCreditsBuket;
 
+
+@Builder
+@Getter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ClientSession<T> {
-    @Getter
     private final String clientId;
     private final Credits credits;
-    @Getter
-    private final long sessionCreatedTimestamp;
-    @Getter
+    private final long sessionCreatedTimestamp = System.currentTimeMillis();
     @EqualsAndHashCode.Include
     private final T session;
 
-    public ClientSession(String clientId, T session, int maxCredits, double refillRate) {
-        this.clientId = clientId;
-        this.session = session;
-        this.credits = new LazyCreditsBuket(maxCredits, refillRate);
-        this.sessionCreatedTimestamp = System.currentTimeMillis();
-    }
-
-    public boolean tryConsume() {
+    public boolean tryConsumeCredits() {
         return credits.tryConsume();
     }
     public double getAvailableCredits() {

@@ -13,6 +13,7 @@ import org.hormigas.ws.backpressure.PublisherFactory;
 import org.hormigas.ws.backpressure.PublisherMetrics;
 import org.hormigas.ws.backpressure.PublisherWithBackPressure;
 import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.core.router.InboundRouter;
 import org.hormigas.ws.core.router.PipelineRouter;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.domain.MessageEnvelope;
@@ -35,7 +36,7 @@ public class IncomingPublisher implements PublisherWithBackPressure<Message> {
     MessagesConfig messagesConfig;
 
     @Inject
-    PipelineRouter<Message> pipelineRouter;
+    InboundRouter<Message> pipelineRouter;
 
     @Inject
     MeterRegistry meterRegistry;

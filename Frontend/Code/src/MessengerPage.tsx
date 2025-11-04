@@ -30,9 +30,28 @@ const MessengerPage: React.FC = () => {
 
             ws.onmessage = (event) => {
                 const data: ServerMessage = JSON.parse(event.data);
-                console.log("Received and acknowledged:", data.content);
-                setMessages((prev) => [...prev, data.content]);
-                ws.send(JSON.stringify({ ackId: data.id }));
+                console.log("Received and acknowledged:", data.messageId);
+                setMessages(prev => {
+                   const newMessages = [...prev, data.payload.body];
+                   return newMessages.slice(-20);
+                });
+		const ack = {
+		    messageId: crypto.randomUUID(),
+		    correlationId: data.messageId,    // ✅ имя совпадает с Java
+		    type: "CHAT_ACK",                 // ✅ правильное значение Enum
+		    senderId: data.recipientId,       // ✅ локальный ID клиента
+		    recipientId: data.senderId,       // ✅ кто прислал — тому и ACK
+		    clientTimestamp: Date.now(),
+		    requiresAck: false,
+		    durable: false,
+		    persistent: false,
+		    payload: {
+		      kind: "ack",
+		      body: `Ack for message ${data.messageId}`
+		    }
+		  };
+
+		 ws.send(JSON.stringify(ack)); // ✅ обязательно сериализовать!
             };
 
             ws.onerror = (err) => {

@@ -6,6 +6,7 @@ import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.feedback.Regulator;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
 
 import java.time.Duration;
@@ -13,7 +14,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @ApplicationScoped
-public class FeedbackRegulator {
+public class FeedbackRegulator implements Regulator {
     private long baseIntervalMs;
     private double adjustmentFactor;
     private double recoveryFactor;
@@ -42,7 +43,8 @@ public class FeedbackRegulator {
         }
     }
 
-    public Duration getCurrentInterval() {
+    @Override
+    public Duration getCurrentIntervalMs() {
         return Duration.ofMillis(currentIntervalMs.get());
     }
 }

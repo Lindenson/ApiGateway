@@ -3,6 +3,7 @@ package org.hormigas.ws.ports.channel.presense.inmemory;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.credits.lazy.LazyCreditsBuket;
 import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
 import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
@@ -13,6 +14,9 @@ import java.util.stream.Stream;
 
 @Slf4j
 public class LocalRegistry<T> implements ClientsRegistry<T> {
+
+    private final int MAX_CREDITS = 1500;
+    private final double REFILL_RATE = 800;
 
     private final Gauge gauge;
     private final MeterRegistry meterRegistry;
@@ -28,17 +32,22 @@ public class LocalRegistry<T> implements ClientsRegistry<T> {
 
 
     @Override
-    public void deregisterConnection(T session) {
-        ClientSession<T> removed = sessionIndex.remove(session);
+    public void deregisterConnection(T connection) {
+        ClientSession<T> removed = sessionIndex.remove(connection);
         if (removed != null) {
             log.debug("Client disconnected: {}", removed.getClientId());
         }
     }
 
     @Override
-    public void registerClient(ClientData clientData, T session) {
-        deregisterConnection(session);
-        sessionIndex.put(session, new ClientSession<>(clientData.getClientId(), session, 200, 20.0));
+    public void registerClient(ClientData clientData, T connection) {
+        deregisterConnection(connection);
+        var client = ClientSession.<T>builder()
+                .clientId(clientData.getClientId())
+                .session(connection)
+                .credits(new LazyCreditsBuket(MAX_CREDITS, REFILL_RATE))
+                .build();
+        sessionIndex.put(connection, client);
         log.debug("Client connected: {}", clientData.getClientId());
     }
 
@@ -51,6 +60,11 @@ public class LocalRegistry<T> implements ClientsRegistry<T> {
     @Override
     public ClientSession<T> getClientSessionByConnection(T connection) {
         return sessionIndex.get(connection);
+    }
+
+    @Override
+    public long countAllClients() {
+        return sessionIndex.size();
     }
 
     private int size() {
