@@ -21,6 +21,7 @@ public class Message {
     private final String correlationId;
     private final String conversationId;
 
+    @With
     private final MessageType type;
 
     private final long clientTimestamp;

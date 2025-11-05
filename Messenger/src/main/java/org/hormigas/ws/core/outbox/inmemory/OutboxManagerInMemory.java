@@ -30,15 +30,14 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
 
     @Override
     public Uni<StageStatus> removeFromOutbox(@Nullable Message message) {
-        log.warn("OUTBOX SIZE BEFORE: {}", messages.size());
         if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
 
+        log.warn("OUTBOX SIZE BEFORE: {}", messages.size());
         log.debug("Removing message {}", message);
-        var replacedWith = Uni.createFrom().item(messages.remove(message.getCorrelationId()))
+        var removed = Uni.createFrom().item(messages.remove(message.getCorrelationId()))
                 .onItem().transform(it -> it != null? SUCCESS : SKIPPED);
-
         log.warn("OUTBOX SIZE AFTER: {}", messages.size());
-        return replacedWith;
+        return removed;
     }
 
     @Override

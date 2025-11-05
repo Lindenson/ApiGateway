@@ -38,8 +38,6 @@ public class MessagePipelineResolver implements PipelineResolver<Message, Messag
         routingMatrix.put(SIGNAL_ACK, ACK_CACHED);
         routingMatrix.put(CHAT_ACK, ACK_PERSISTENT);
 
-
-
     }
 
     @Override

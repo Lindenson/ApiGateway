@@ -32,6 +32,8 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     @Override
     public Uni<MessageEnvelope<Message>> routeIn(Message message) {
         var pipeline = pipelineResolver.resolvePipeline(message);
+
+        if (message.getType() == MessageType.CHAT_IN) message = message.withType(MessageType.CHAT_OUT);
         var context = RouterContext.<Message>builder()
                 .pipelineType(pipeline)
                 .payload(message).build();
@@ -59,7 +61,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
             case SKIP -> finalStage.apply(context);
 
             default -> Uni.createFrom().failure(
-                    new IllegalStateException("Unhandled pipeline: " + pipeline)
+                    new IllegalStateException("Unhandled pipeline: " + pipeline + " for message: " + message)
             );
         };
 

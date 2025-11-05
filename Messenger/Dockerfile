@@ -20,6 +20,8 @@ ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 \
 -Dcom.sun.management.jmxremote.authenticate=false \
 -Dcom.sun.management.jmxremote.ssl=false \
 -Djava.rmi.server.hostname=192.168.1.141"
+ENV GC_CONTAINER_OPTIONS="-XX:+UseG1GC"
+ENV CONTAINER_MAX_MEMORY="800m"
 
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
 

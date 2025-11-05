@@ -84,7 +84,6 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
     @OnTextMessage
     public Uni<Void> onMessage(String rawJson, WebSocketConnection conn) {
         log.debug("Receiving message {}", rawJson);
-        log.error("!!Connected {}", connectionRegistry.countAllClients());
         try {
             ClientSession<WebSocketConnection> clientSession = connectionRegistry.getClientSessionByConnection(conn);
             if (clientSession == null) {

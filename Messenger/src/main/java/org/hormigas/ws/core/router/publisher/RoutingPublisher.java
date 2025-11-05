@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hormigas.ws.backpressure.PublisherFactory.Mode.PARALLEL;
+import static org.hormigas.ws.backpressure.PublisherFactory.Publisher.OUTGOING;
 
 
 @Slf4j
@@ -52,7 +53,7 @@ public class RoutingPublisher implements PublisherWithBackPressure<Message> {
     void init() {
         this.metrics = new OutgoingPublisherMetrics(meterRegistry, eventsProvider);
 
-        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageEnvelope<Message>>>getFactoryFor("outgoing")
+        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageEnvelope<Message>>>getFactoryFor(OUTGOING)
                 .withSink(pipelineRouter::routeOut)
                 .withMetrics(metrics)
                 .withQueueSizeCounter(queueSize)

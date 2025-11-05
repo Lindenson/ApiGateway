@@ -48,7 +48,7 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
             case SKIP -> finalStage.apply(context);
 
             default -> Uni.createFrom().failure(
-                    new IllegalStateException("Unhandled pipeline: " + pipeline)
+                    new IllegalStateException("Unhandled pipeline: " + pipeline + " for message: " + message)
             );
         };
 

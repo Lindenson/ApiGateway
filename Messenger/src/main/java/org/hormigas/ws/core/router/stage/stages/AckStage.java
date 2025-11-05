@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.generator.IdGenerator;
 
 import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
 import static org.hormigas.ws.domain.MessageType.CHAT_ACK;
@@ -15,6 +16,7 @@ import static org.hormigas.ws.domain.MessageType.CHAT_ACK;
 public class AckStage implements PipelineStage<RouterContext<Message>> {
 
     private final DeliveryStage deliveryStage;
+    private final IdGenerator idGenerator;
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
@@ -33,6 +35,7 @@ public class AckStage implements PipelineStage<RouterContext<Message>> {
 
     private Message createAck(Message original) {
         return Message.builder()
+                .messageId(idGenerator.generateId())
                 .type(CHAT_ACK)
                 .senderId("server")
                 .recipientId(original.getSenderId())
