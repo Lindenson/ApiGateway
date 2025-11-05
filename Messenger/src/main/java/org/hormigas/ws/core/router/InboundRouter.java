@@ -1,3 +1,8 @@
 package org.hormigas.ws.core.router;
 
-public interface InboundRouter<T> extends PipelineRouter<T> { }
+import io.smallrye.mutiny.Uni;
+import org.hormigas.ws.domain.MessageEnvelope;
+
+public interface InboundRouter<T> {
+    Uni<MessageEnvelope<T>> routeIn(T message);
+}

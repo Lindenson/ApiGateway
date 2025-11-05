@@ -48,6 +48,7 @@ public class TestScheduler {
                     .messageId(UUID.randomUUID().toString())
                     .conversationId(UUID.randomUUID().toString())
                     .recipientId(clients.get(counter.get() % 2).clientId)
+                    .senderId("server")
                     .type(MessageType.CHAT_OUT)
                     .payload(new Message.Payload("text", "Hello-" + counter.incrementAndGet()))
                     .build();

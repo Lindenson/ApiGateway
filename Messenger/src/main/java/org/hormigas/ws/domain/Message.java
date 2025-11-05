@@ -16,7 +16,7 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(builder = Message.MessageBuilder.class)
 public class Message {
-
+    @With
     private final String messageId;
     private final String correlationId;
     private final String conversationId;

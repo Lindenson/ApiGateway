@@ -12,10 +12,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.channel.DeliveryChannel;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.generator.IdGenerator;
 import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
 import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
 import org.hormigas.ws.ports.channel.presense.inmemory.LocalRegistry;
-import org.hormigas.ws.ports.channel.validator.ChannelValidator;
+import org.hormigas.ws.domain.validator.Validator;
 import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
 import org.hormigas.ws.ports.channel.ws.publisher.IncomingPublisher;
 import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
@@ -45,7 +46,10 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
     ObjectMapper objectMapper;
 
     @Inject
-    ChannelValidator<Message> channelValidator;
+    Validator<Message> validator;
+
+    @Inject
+    IdGenerator idGenerator;
 
     @Inject
     ChannelFilter<Message, WebSocketConnection> channelFilter;
@@ -88,7 +92,8 @@ public class WebsocketDeliveryChannel implements DeliveryChannel<Message> {
                 return Uni.createFrom().voidItem();
             }
             Message message = objectMapper.readValue(rawJson, Message.class);
-            if (!channelValidator.valid(message)) {
+            message = message.withMessageId(idGenerator.generateId());
+            if (!validator.valid(message)) {
                 log.warn("Message didn't pass validation {}", message.getMessageId());
                 return Uni.createFrom().voidItem();
             }

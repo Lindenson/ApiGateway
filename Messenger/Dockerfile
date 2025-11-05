@@ -19,7 +19,7 @@ ENV JAVA_OPTS_APPEND="-Dquarkus.http.host=0.0.0.0 \
 -Dcom.sun.management.jmxremote.local.only=false \
 -Dcom.sun.management.jmxremote.authenticate=false \
 -Dcom.sun.management.jmxremote.ssl=false \
--Djava.rmi.server.hostname=192.168.1.145"
+-Djava.rmi.server.hostname=192.168.1.141"
 
 ENV JAVA_APP_JAR="/deployments/quarkus-run.jar"
 

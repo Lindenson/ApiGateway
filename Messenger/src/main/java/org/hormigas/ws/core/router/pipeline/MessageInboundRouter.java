@@ -21,6 +21,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     private final org.hormigas.ws.core.router.PipelineResolver<Message, MessageType> pipelineResolver;
     private final OutboxStage outboxStage;
     private final DeliveryStage deliveryStage;
+    private final AckStage ackStage;
     private final CleanOutboxStage cleanOutboxStage;
     private final CleanCacheStage cleanCacheStage;
     private final CacheStage cacheStage;
@@ -29,7 +30,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     private final RouterLogger<Message> logger = new InboundRouterLogger();
 
     @Override
-    public Uni<MessageEnvelope<Message>> route(Message message) {
+    public Uni<MessageEnvelope<Message>> routeIn(Message message) {
         var pipeline = pipelineResolver.resolvePipeline(message);
         var context = RouterContext.<Message>builder()
                 .pipelineType(pipeline)
@@ -39,6 +40,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
 
         Uni<RouterContext<Message>> processed = switch (pipeline) {
             case INBOUND_PERSISTENT -> outboxStage.apply(context)
+                    .onItem().transformToUni(ackStage::apply)
                     .onItem().transformToUni(deliveryStage::apply)
                     .onItem().transformToUni(cacheStage::apply)
                     .onItem().transformToUni(finalStage::apply);

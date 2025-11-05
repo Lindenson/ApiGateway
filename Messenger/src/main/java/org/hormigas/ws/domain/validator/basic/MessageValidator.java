@@ -1,13 +1,14 @@
-package org.hormigas.ws.ports.channel.validator;
+package org.hormigas.ws.domain.validator.basic;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.validator.Validator;
 
 @Slf4j
 @ApplicationScoped
-public class ChannelMessageValidator implements ChannelValidator<Message> {
+public class MessageValidator implements Validator<Message> {
 
     @Override
     public boolean valid(Message message) {

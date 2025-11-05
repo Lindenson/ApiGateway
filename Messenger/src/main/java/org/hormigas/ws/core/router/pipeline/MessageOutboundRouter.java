@@ -29,7 +29,7 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
     private final RouterLogger<Message> logger = new OutboundRouterLogger();
 
     @Override
-    public Uni<MessageEnvelope<Message>> route(Message message) {
+    public Uni<MessageEnvelope<Message>> routeOut(Message message) {
         var pipeline = pipelineResolver.resolvePipeline(message);
         var context = RouterContext.<Message>builder()
                 .pipelineType(pipeline)
