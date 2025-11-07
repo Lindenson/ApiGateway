@@ -25,6 +25,6 @@ public class OutgoingPublisherFactory extends PublisherFactoryAbstract<Message, 
                     log.error("Failed to process outgoing message", failure);
                 })
                 .replaceWithVoid()
-                .eventually(() -> getMetrics().setQueueSize(getQueueSizeContainer().decrementAndGet()));
+                .eventually(() -> getMetrics().updateQueueSize(getQueueSizeContainer().decrementAndGet()));
     }
 }

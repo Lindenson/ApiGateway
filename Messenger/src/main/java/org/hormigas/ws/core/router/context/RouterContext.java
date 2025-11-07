@@ -3,6 +3,7 @@ package org.hormigas.ws.core.router.context;
 import lombok.Builder;
 import lombok.Data;
 import lombok.Getter;
+import lombok.With;
 import org.hormigas.ws.core.router.PipelineResolver;
 import org.hormigas.ws.core.router.stage.StageStatus;
 
@@ -12,8 +13,6 @@ import static org.hormigas.ws.core.router.stage.StageStatus.UNKNOWN;
 @Data
 @Builder
 public class RouterContext<T> {
-    @Getter
-    private final T payload;
     @Builder.Default
     private StageStatus delivered = UNKNOWN;
     @Builder.Default
@@ -25,8 +24,13 @@ public class RouterContext<T> {
     @Builder.Default
     private boolean done = false;
 
-    private PipelineResolver.PipelineType pipelineType;
+    private final PipelineResolver.PipelineType pipelineType;
+    @With
     private Throwable error;
+
+    @With
+    @Getter
+    private final T payload;
 
     public boolean hasError() {
         return error != null;

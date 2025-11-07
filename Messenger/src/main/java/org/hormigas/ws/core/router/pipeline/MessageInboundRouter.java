@@ -5,6 +5,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.InboundRouter;
+import org.hormigas.ws.core.router.context.InboundPrototype;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.logger.RouterLogger;
 import org.hormigas.ws.core.router.logger.inout.InboundRouterLogger;
@@ -26,19 +27,16 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     private final CleanCacheStage cleanCacheStage;
     private final CacheStage cacheStage;
     private final FinalStage finalStage;
+    private final InboundPrototype prototype;
 
     private final RouterLogger<Message> logger = new InboundRouterLogger();
 
     @Override
     public Uni<MessageEnvelope<Message>> routeIn(Message message) {
+
         var pipeline = pipelineResolver.resolvePipeline(message);
-
-        if (message.getType() == MessageType.CHAT_IN) message = message.withType(MessageType.CHAT_OUT);
-        var context = RouterContext.<Message>builder()
-                .pipelineType(pipeline)
-                .payload(message).build();
-
         logger.logRoutingStart(message, pipeline);
+        var context = prototype.createOutboundContext(pipeline, message);
 
         Uni<RouterContext<Message>> processed = switch (pipeline) {
             case INBOUND_PERSISTENT -> outboxStage.apply(context)
@@ -51,6 +49,9 @@ public class MessageInboundRouter implements InboundRouter<Message> {
                     .onItem().transformToUni(cacheStage::apply)
                     .onItem().transformToUni(finalStage::apply);
 
+            case INBOUND_DIRECT -> deliveryStage.apply(context)
+                    .onItem().transformToUni(finalStage::apply);
+
             case ACK_PERSISTENT -> cleanOutboxStage.apply(context)
                     .onItem().transformToUni(cleanCacheStage::apply)
                     .onItem().transformToUni(finalStage::apply);
@@ -60,15 +61,20 @@ public class MessageInboundRouter implements InboundRouter<Message> {
 
             case SKIP -> finalStage.apply(context);
 
-            default -> Uni.createFrom().failure(
-                    new IllegalStateException("Unhandled pipeline: " + pipeline + " for message: " + message)
-            );
+            default -> {
+                log.error("Unhandled pipeline: {} for message: {}", pipeline, message);
+                yield finalStage.apply(context.withError(new IllegalStateException("Unhandled pipeline: " + pipeline)));
+            }
         };
+        return logAndEnvelope(processed);
+    }
 
-        return processed.onItem().invoke(logger::logResult)
-                .onItem().transform(toBeMapped -> MessageEnvelope.<Message>builder()
-                        .message(toBeMapped.getPayload())
-                        .processed(toBeMapped.isDone())
+    private Uni<MessageEnvelope<Message>> logAndEnvelope(Uni<RouterContext<Message>> processed) {
+        return processed.onItem()
+                .invoke(logger::logRoutingResult).onItem()
+                .transform(pc -> MessageEnvelope.<Message>builder()
+                        .message(pc.getPayload())
+                        .processed(pc.isDone())
                         .build());
     }
 }

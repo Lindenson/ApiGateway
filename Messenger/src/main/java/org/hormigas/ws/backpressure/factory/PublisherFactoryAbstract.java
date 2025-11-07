@@ -61,10 +61,10 @@ public abstract class PublisherFactoryAbstract<T, M extends PublisherMetrics, S>
         }
 
         return switch (mode) {
-            case SEQUENTIAL -> Multi.createFrom().<T>emitter(em -> emitter.set(em), BackPressureStrategy.BUFFER)
+            case PARALLEL -> Multi.createFrom().<T>emitter(em -> emitter.set(em), BackPressureStrategy.BUFFER)
                     .onOverflow().bufferUnconditionally()
                     .onItem().transformToUniAndMerge(this::publishMessage);
-            case PARALLEL -> Multi.createFrom().<T>emitter(em -> emitter.set(em), BackPressureStrategy.BUFFER)
+            case SEQUENTIAL -> Multi.createFrom().<T>emitter(em -> emitter.set(em), BackPressureStrategy.BUFFER)
                     .onOverflow().bufferUnconditionally()
                     .onItem().transformToUniAndConcatenate(this::publishMessage);
         };

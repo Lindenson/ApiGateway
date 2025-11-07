@@ -1,4 +1,4 @@
-package org.hormigas.ws.ports.channel.ws.publisher;
+package org.hormigas.ws.ports.channel.ws.publisher.router;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
@@ -23,7 +23,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hormigas.ws.backpressure.PublisherFactory.Mode.PARALLEL;
+import static org.hormigas.ws.backpressure.PublisherFactory.Mode.SEQUENTIAL;
 import static org.hormigas.ws.backpressure.PublisherFactory.Publisher.INCOMING;
 
 
@@ -60,12 +60,12 @@ public class IncomingPublisher implements PublisherWithBackPressure<Message> {
                 .withQueueSizeCounter(queueSize)
                 .withEmitter(emitter)
                 .withMetrics(metrics)
-                .withMode(PARALLEL)
+                .withMode(SEQUENTIAL)
                 .build()
                 .subscribe().with(
                         ignored -> Log.debug("Publishing incoming messages!"),
                         failure -> {
-                            metrics.resetQueue();
+                            metrics.resetQueueSize();
                             queueSize.set(0);
                             Log.error("Incoming publisher terminated unexpectedly", failure);
                         }
@@ -99,8 +99,8 @@ public class IncomingPublisher implements PublisherWithBackPressure<Message> {
 
     @Override
     public boolean queueIsFull() {
-        metrics.setQueueSize(queueSize.get());
-        if (queueSize.incrementAndGet() > messagesConfig.outbox().ackQueueSize()) {
+        metrics.updateQueueSize(queueSize.get());
+        if (queueSize.incrementAndGet() > messagesConfig.outbox().incomingQueueSize()) {
             log.debug("Incoming queue is full");
             queueSize.decrementAndGet();
             return true;

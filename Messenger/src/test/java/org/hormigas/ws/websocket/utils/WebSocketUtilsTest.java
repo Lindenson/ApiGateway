@@ -6,7 +6,7 @@ import io.quarkus.websockets.next.CloseReason;
 
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -54,15 +54,15 @@ class WebSocketUtilsTest {
         when(handshakeRequest.header("Authorization")).thenReturn("Bearer valid.token");
 
         ClientData clientData = ClientData.builder()
-                .clientId("client-123")
-                .clientName("Test Client")
+                .id("client-123")
+                .name("Test Client")
                 .build();
         when(jwtValidator.validate("valid.token")).thenReturn(Optional.of(clientData));
 
         Optional<ClientData> result = webSocketUtils.getValidatedClientData(connection);
 
         assertTrue(result.isPresent());
-        assertEquals("client-123", result.get().getClientId());
+        assertEquals("client-123", result.get().getId());
     }
 
     @Test

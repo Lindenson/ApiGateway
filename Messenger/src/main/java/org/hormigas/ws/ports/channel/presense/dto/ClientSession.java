@@ -10,9 +10,10 @@ import org.hormigas.ws.credits.Credits;
 @Getter
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class ClientSession<T> {
-    private final String clientId;
+    private final String id;
+    private final String name;
     private final Credits credits;
-    private final long sessionCreatedTimestamp = System.currentTimeMillis();
+    private final long connectedAt = System.currentTimeMillis();
     @EqualsAndHashCode.Include
     private final T session;
 

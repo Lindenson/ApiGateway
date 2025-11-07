@@ -3,10 +3,13 @@ package org.hormigas.ws.core.outbox.inmemory;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.core.idempotency.inmemory.ConcurrentInsertionOrderMap;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -17,14 +20,18 @@ import static org.hormigas.ws.core.router.stage.StageStatus.*;
 @Slf4j
 public class OutboxManagerInMemory implements OutboxManager<Message> {
 
-    private final ConcurrentMap<String, Message> messages = new ConcurrentHashMap<>();
+
+    private final TimeOrderedStringKeyMap<Message> messages = new TimeOrderedStringKeyMap<>(Message::getClientTimestamp);
+    private final int MAX_OUTBOX_SIZE = 5000;
+
 
     @Override
     public Uni<StageStatus> saveToOutbox(@Nullable Message message) {
         if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
 
+        if (messages.size() > MAX_OUTBOX_SIZE) log.warn("TOO MUCH OUTBOX SIZE: {}", messages.size());
         log.debug("Saving message {}", message);
-        return Uni.createFrom().item(messages.put(message.getMessageId(), message))
+        return Uni.createFrom().item(messages.putIfAbsent(message.getMessageId(), message))
                 .onItem().transform(it -> it == null? SUCCESS : SKIPPED);
     }
 
@@ -32,31 +39,27 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
     public Uni<StageStatus> removeFromOutbox(@Nullable Message message) {
         if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
 
-        log.warn("OUTBOX SIZE BEFORE: {}", messages.size());
         log.debug("Removing message {}", message);
-        var removed = Uni.createFrom().item(messages.remove(message.getCorrelationId()))
+        return Uni.createFrom().item(messages.remove(message.getCorrelationId()))
                 .onItem().transform(it -> it != null? SUCCESS : SKIPPED);
-        log.warn("OUTBOX SIZE AFTER: {}", messages.size());
-        return removed;
     }
 
     @Override
     public Uni<Message> getFromOutbox() {
-        return Uni.createFrom().optional(() ->
-                messages.values().stream().findFirst()
-        );
+        Message first = messages.peekFirst();
+        return first != null
+                ? Uni.createFrom().item(first)
+                : Uni.createFrom().nothing();
     }
 
+
+    @Override
     public Uni<List<Message>> getFromOutboxBatch(int batchSize) {
-        return Uni.createFrom().item(() ->
-                        messages.values().stream()
-                                .limit(batchSize)
-                                .toList()
-                ).onItem().ifNotNull()
-                .transformToUni(list ->
-                        list.isEmpty()
-                                ? Uni.createFrom().nothing()
-                                : Uni.createFrom().item(list)
-                );
+        List<Message> batch = messages.peekFirstN(batchSize);
+
+        log.debug("Batched {} messages", batch.size());
+        return batch.isEmpty()
+                ? Uni.createFrom().nothing()
+                : Uni.createFrom().item(batch);
     }
 }

@@ -12,7 +12,7 @@ import io.vertx.core.json.Json;
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.ports.channel.ws.mappers.dto.SocketMessage;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.hormigas.ws.service.ClientMessagePersistence;
 import org.junit.jupiter.api.Test;
 
@@ -48,7 +48,7 @@ class MessengerWebSocketTest {
         Message message = getMessageMessageClientId(UUID.randomUUID());
         SocketMessage socketMessage = SocketMessage.builder().content(message.getContent()).id(message.getId().toString()).build();
 
-        when(jwtValidator.validate(anyString())).thenReturn(Optional.of(ClientData.builder().clientId(message.getClientId()).build()));
+        when(jwtValidator.validate(anyString())).thenReturn(Optional.of(ClientData.builder().id(message.getClientId()).build()));
         when(messagePersistence.getNextBatchToSend()).thenReturn(Uni.createFrom().item(List.of(message)));
 
         CountDownLatch messageLatch = new CountDownLatch(1);

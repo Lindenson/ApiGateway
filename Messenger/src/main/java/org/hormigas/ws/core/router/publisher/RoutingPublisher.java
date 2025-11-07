@@ -24,6 +24,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.hormigas.ws.backpressure.PublisherFactory.Mode.PARALLEL;
+import static org.hormigas.ws.backpressure.PublisherFactory.Mode.SEQUENTIAL;
 import static org.hormigas.ws.backpressure.PublisherFactory.Publisher.OUTGOING;
 
 
@@ -58,13 +59,13 @@ public class RoutingPublisher implements PublisherWithBackPressure<Message> {
                 .withMetrics(metrics)
                 .withQueueSizeCounter(queueSize)
                 .withEmitter(emitter)
-                .withMode(PARALLEL)
+                .withMode(SEQUENTIAL)
                 .build()
                 .subscribe().with(
                         ignored -> Log.debug("Publishing messages!"),
                         failure -> {
                             queueSize.set(0);
-                            metrics.resetQueue();
+                            metrics.resetQueueSize();
                             Log.error("Processor terminated unexpectedly", failure);
                         }
                 );
@@ -97,7 +98,7 @@ public class RoutingPublisher implements PublisherWithBackPressure<Message> {
 
     @Override
     public boolean queueIsFull() {
-        metrics.setQueueSize(queueSize.get());
+        metrics.updateQueueSize(queueSize.get());
         if (queueSize.incrementAndGet() > messagesConfig.outbox().sendingQueueSize()) {
             log.debug("Queue is full");
             queueSize.decrementAndGet();

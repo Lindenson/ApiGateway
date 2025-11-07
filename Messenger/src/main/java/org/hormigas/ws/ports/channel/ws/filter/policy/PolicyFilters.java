@@ -1,6 +1,8 @@
 package org.hormigas.ws.ports.channel.ws.filter.policy;
 
 import io.quarkus.websockets.next.WebSocketConnection;
+import jakarta.annotation.Nonnull;
+import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.credits.CreditPolicy;
@@ -16,9 +18,13 @@ public class PolicyFilters implements ChannelFilter<Message, WebSocketConnection
     CreditPolicy<Message> creditPolicy = new InboundMessageCreditPolicy();
 
     @Override
-    public boolean filter(Message message, ClientSession<WebSocketConnection> clientSession) {
+    public boolean filter(@Nullable Message message, @Nonnull ClientSession<WebSocketConnection> clientSession) {
+        if (message == null) {
+            log.error("Message is null for a client {}", clientSession.getId());
+            return false;
+        }
         if (creditPolicy.test(message) && !clientSession.tryConsumeCredits()) {
-            log.warn("Rate limit exceeded for client {}", clientSession.getClientId());
+            log.warn("Rate limit exceeded for client {}", clientSession.getId());
             return false;
         }
         return true;

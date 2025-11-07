@@ -30,12 +30,14 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
 
     @Override
     public Uni<MessageEnvelope<Message>> routeOut(Message message) {
+
         var pipeline = pipelineResolver.resolvePipeline(message);
+
+        message = message.toBuilder().serverTimestamp(System.currentTimeMillis()).build();
+        logger.logRoutingStart(message, pipeline);
         var context = RouterContext.<Message>builder()
                 .pipelineType(pipeline)
                 .payload(message).build();
-
-        logger.logRoutingStart(message, pipeline);
 
         Uni<RouterContext<Message>> processed = switch (pipeline) {
             case OUTBOUND_CACHED -> deliveryStage.apply(context)
@@ -47,15 +49,22 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
 
             case SKIP -> finalStage.apply(context);
 
-            default -> Uni.createFrom().failure(
-                    new IllegalStateException("Unhandled pipeline: " + pipeline + " for message: " + message)
-            );
+            default -> {
+                log.error("Unhandled pipeline: {} for message: {}", pipeline, message);
+                yield finalStage.apply(context.withError(new IllegalStateException("Unhandled pipeline: " + pipeline)));
+            }
         };
 
-        return processed.onItem().invoke(logger::logResult).onItem().transform(ctx ->
-                MessageEnvelope.<Message>builder()
-                        .message(ctx.getPayload())
-                        .processed(ctx.isDone())
-                        .build());
+        return logAndEnvelope(processed);
+    }
+
+    private Uni<MessageEnvelope<Message>> logAndEnvelope(Uni<RouterContext<Message>> processed) {
+        return processed.onItem()
+                .invoke(logger::logRoutingResult).onItem()
+                .transform(pc ->
+                        MessageEnvelope.<Message>builder()
+                                .message(pc.getPayload())
+                                .processed(pc.isDone())
+                                .build());
     }
 }

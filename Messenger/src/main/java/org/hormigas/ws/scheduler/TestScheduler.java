@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.generator.IdGenerator;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -25,7 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class TestScheduler {
 
     static final List<Clients> clients;
-    private final AtomicInteger published = new AtomicInteger(0);
 
     static {
         clients = List.of(
@@ -39,16 +39,20 @@ public class TestScheduler {
     @Inject
     OutboxManager<Message> outboxManager;
 
+    @Inject
+    IdGenerator idGenerator;
+
     private static final AtomicInteger counter = new AtomicInteger(0);
 
-    @Scheduled(every = "1s")
+    @Scheduled(every = "1s", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     public Uni<Void> insertRandomClientMessage() {
-        return Multi.createFrom().range(0, 1000).onItem().transformToUniAndConcatenate(it -> {
+        return Multi.createFrom().range(0, 500).onItem().transformToUniAndConcatenate(it -> {
             Message msg = Message.builder()
-                    .messageId(UUID.randomUUID().toString())
-                    .conversationId(UUID.randomUUID().toString())
+                    .messageId(idGenerator.generateId())
+                    .conversationId(idGenerator.generateId())
                     .recipientId(clients.get(counter.get() % 2).clientId)
                     .senderId("server")
+                    .clientTimestamp(System.currentTimeMillis())
                     .type(MessageType.CHAT_OUT)
                     .payload(new Message.Payload("text", "Hello-" + counter.incrementAndGet()))
                     .build();

@@ -21,8 +21,8 @@ import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
 @Slf4j
 public class OutboxBatchBuffer {
 
-    private static final int BATCH_SIZE = 1000;
-    private static final Duration FLUSH_INTERVAL = Duration.ofMillis(500);
+    private static final int BATCH_SIZE = 500;
+    private static final Duration FLUSH_INTERVAL = Duration.ofMillis(1000);
     private static final Duration MAX_DELAY = FLUSH_INTERVAL.multipliedBy(2);
 
     private final AtomicReference<ConcurrentLinkedQueue<Message>> bufferRef =
@@ -42,7 +42,6 @@ public class OutboxBatchBuffer {
     public StageStatus add(@Nullable Message msg) {
         if (msg == null) return FAILED;
         if (!canBatch()) {
-            log.warn("Bypassing buffer: too large or scheduler lag detected");
             outboxManager.removeFromOutbox(msg)
                     .subscribe().with(
                             ok -> log.debug("Directly removed {}", msg.getMessageId()),
@@ -62,9 +61,14 @@ public class OutboxBatchBuffer {
     }
 
     public boolean canBatch() {
-        var queue = bufferRef.get();
+        var qSize = bufferRef.get().size();
         long sinceLastFlush = System.currentTimeMillis() - lastFlushTime;
-        return queue.size() < BATCH_SIZE * 5 && sinceLastFlush < MAX_DELAY.toMillis();
+        if (qSize > BATCH_SIZE * 5 || sinceLastFlush > MAX_DELAY.toMillis()) {
+            log.warn("Bypassing buffer: too large {} or scheduler lag {} detected", qSize, sinceLastFlush);
+            lastFlushTime = System.currentTimeMillis();
+            return false;
+        }
+        return true;
     }
 
     private void flush() {

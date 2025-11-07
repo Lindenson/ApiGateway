@@ -30,12 +30,12 @@ public class IncommingPublisherMetrics implements PublisherMetrics {
     }
 
     @Override
-    public void setQueueSize(int newSize) {
+    public void updateQueueSize(int newSize) {
         queueSnapshot.record(newSize);
     }
 
     @Override
-    public void resetQueue() {
+    public void resetQueueSize() {
         queueSnapshot.record(0);
     }
 

@@ -4,5 +4,5 @@ import org.hormigas.ws.core.router.context.RouterContext;
 
 public interface RouterLogger<T> {
     void logRoutingStart(T message, Object pipelineType);
-    void logResult(RouterContext<T> ctx);
+    void logRoutingResult(RouterContext<T> ctx);
 }

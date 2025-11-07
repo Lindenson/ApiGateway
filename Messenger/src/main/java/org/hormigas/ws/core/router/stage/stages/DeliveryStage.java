@@ -13,10 +13,12 @@ import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.core.channel.DeliveryChannel;
+import org.hormigas.ws.domain.MessageType;
 
 import java.time.Duration;
 
 import static org.hormigas.ws.core.router.stage.StageStatus.SKIPPED;
+import static org.hormigas.ws.domain.MessageType.CHAT_ACK;
 
 @Slf4j
 @ApplicationScoped
@@ -56,6 +58,7 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
     private Uni<Boolean> isDeliverable(RouterContext<Message> ctx) {
         Message message = ctx.getPayload();
+        if (message.getType() == CHAT_ACK) return Uni.createFrom().item(true);
         return idempotencyManager.inProgress(message)
                 .flatMap(progressing -> {
                     if (progressing) return Uni.createFrom().item(Boolean.FALSE);

@@ -21,23 +21,26 @@ public class MessagePipelineResolver implements PipelineResolver<Message, Messag
 
     public MessagePipelineResolver() {
 
-        // OUT
-        // CHAT routing
+        // OUT - MESSAGES GENERATED (RECEIVED) FROM SERVICE/OUTBOX
+        // CHAT
         routingMatrix.put(CHAT_OUT, OUTBOUND_CACHED);
-        // SIGNAL routing
+        // SIGNAL
         routingMatrix.put(SIGNAL_OUT, OUTBOUND_CACHED);
-        // SERVICE routing
+        // SERVICE
         routingMatrix.put(SERVICE_OUT, OUTBOUND_DIRECT);
 
-        // IN
-        // CHAT routing
+        // IN - MESSAGES GENERATED (RECEIVED) FROM CHANEL
+        // CHAT
         routingMatrix.put(CHAT_IN, INBOUND_PERSISTENT);
-        // SIGNAL routing
+        // SIGNAL
         routingMatrix.put(SIGNAL_IN, INBOUND_CACHED);
         // ACK
         routingMatrix.put(SIGNAL_ACK, ACK_CACHED);
         routingMatrix.put(CHAT_ACK, ACK_PERSISTENT);
-
+        // PRESENCE
+        routingMatrix.put(PRESENT_INIT, INBOUND_DIRECT);
+        routingMatrix.put(PRESENT_JOIN, INBOUND_DIRECT);
+        routingMatrix.put(PRESENT_LEAVE, INBOUND_DIRECT);
     }
 
     @Override

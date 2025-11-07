@@ -16,7 +16,7 @@ public class OutboundRouterLogger implements RouterLogger<Message> {
     }
 
     @Override
-    public void logResult(RouterContext<Message> ctx) {
+    public void logRoutingResult(RouterContext<Message> ctx) {
         String messageId = ctx.getPayload().getMessageId();
 
         if (ctx.hasError()) {
@@ -37,7 +37,7 @@ public class OutboundRouterLogger implements RouterLogger<Message> {
 
     private void logStage(Enum<?> status, String messageId, String operation) {
         if (!SUCCESS.equals(status)) {
-            log.warn("Outbound message {} was not {}", messageId, operation);
+            log.debug("Outbound message {} was not {}", messageId, operation);
         }
     }
 }

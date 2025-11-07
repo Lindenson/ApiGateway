@@ -13,7 +13,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hormigas.ws.ports.channel.ws.security.config.KeycloakConfig;
-import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -62,12 +62,7 @@ public class JwtValidator {
                 String clientId = claims.getSubject();
                 String preferredUsername = claims.getStringClaim("preferred_username");
 
-                ClientData data = ClientData.builder()
-                        .clientId(clientId)
-                        .clientName(preferredUsername)
-                        .build();
-
-                return Optional.of(data);
+                return Optional.of(new ClientData(clientId, preferredUsername));
             }
             return Optional.empty();
         } catch (Exception e) {

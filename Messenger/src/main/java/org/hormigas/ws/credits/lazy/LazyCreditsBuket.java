@@ -24,6 +24,7 @@ public class LazyCreditsBuket implements Credits {
         if (now <= last) return;
 
         double elapsed = (now - last) / 1000.0;
+        if (elapsed <= 0) return;
         double oldVal, newVal;
         do {
             oldVal = Double.longBitsToDouble(creditsBits.get());

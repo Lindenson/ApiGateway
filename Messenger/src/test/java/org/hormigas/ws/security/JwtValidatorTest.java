@@ -6,7 +6,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import org.hormigas.ws.ports.channel.ws.security.config.KeycloakConfig;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -56,8 +56,8 @@ class JwtValidatorTest {
         Optional<ClientData> result = jwtValidator.validate(token);
 
         assertTrue(result.isPresent());
-        assertEquals("client123", result.get().getClientId());
-        assertEquals("userX", result.get().getClientName());
+        assertEquals("client123", result.get().getId());
+        assertEquals("userX", result.get().getName());
     }
 
     @Test

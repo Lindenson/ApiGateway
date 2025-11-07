@@ -1,14 +1,17 @@
 package org.hormigas.ws.ports.channel.presense;
 
 import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
-import org.hormigas.ws.ports.channel.ws.security.dto.ClientData;
+import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 
+import java.util.List;
 import java.util.stream.Stream;
 
 public interface ClientsRegistry<T> {
-    void deregisterConnection(T connection);
-    void registerClient(ClientData clientData, T connection);
-    Stream<ClientSession<T>> streamByClientId(String id);
-    ClientSession<T> getClientSessionByConnection(T connection);
+    ClientSession<T>  deregister(T connection);
+    void register(ClientData clientData, T connection);
+    Stream<ClientSession<T>> streamSessionsByClientId(String id);
+    Stream<ClientSession<T>> streamAllOnlineClients();
+    ClientSession<T> getSessionByConnection(T connection);
     long countAllClients();
+    List<ClientData> getAllOnlineClients();
 }

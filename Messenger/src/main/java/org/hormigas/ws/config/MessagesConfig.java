@@ -2,8 +2,6 @@ package org.hormigas.ws.config;
 
 import io.smallrye.config.ConfigMapping;
 
-import java.time.Duration;
-
 @ConfigMapping(prefix = "processing.messages")
 public interface MessagesConfig {
 
@@ -17,7 +15,7 @@ public interface MessagesConfig {
     interface Outbox {
         int batchSize();
         int sendingQueueSize();
-        int ackQueueSize();
+        int incomingQueueSize();
     }
 
     interface Scheduler {

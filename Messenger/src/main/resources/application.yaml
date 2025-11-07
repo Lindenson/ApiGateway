@@ -46,13 +46,13 @@
   processing:
     messages:
       outbox:
-        batch-size: 1300
-        sending-queue-size: 6000
-        ack-queue-size: 4000
+        batch-size: 1500
+        sending-queue-size: 5000
+        incoming-queue-size: 5000
       scheduler:
-        time-interval-ms: "1000ms"
+        time-interval-ms: "800ms"
       feedback:
-        base-interval-ms: 1000
+        base-interval-ms: 700
         adjustment-factor: 0.9
         recovery-factor: 1.05
       channel-retry:
