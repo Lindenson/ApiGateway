@@ -1,9 +1,9 @@
-package org.hormigas.ws.backpressure.incomming;
+package org.hormigas.ws.backpressure.metrics.inout;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
-import org.hormigas.ws.backpressure.PublisherMetrics;
+import org.hormigas.ws.backpressure.metrics.PublisherMetrics;
 import org.hormigas.ws.feedback.events.IncomingHealthEvent;
 import org.hormigas.ws.feedback.provider.InEventProvider;
 
@@ -57,4 +57,10 @@ public class IncommingPublisherMetrics implements PublisherMetrics {
     public void recordFailed() {
         failed.increment();
     }
+
+    @Override
+    public void recordProcessingTime(long nanos) {
+        //not implemented
+    }
+
 }

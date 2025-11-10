@@ -1,6 +1,6 @@
 package org.hormigas.ws.backpressure;
 
-public interface PublisherWithBackPressure<T> extends SimplePublisher<T> {
+public interface BackpressurePublisher<T> extends SimplePublisher<T> {
     boolean queueIsNotEmpty();
     boolean queueIsFull();
 }

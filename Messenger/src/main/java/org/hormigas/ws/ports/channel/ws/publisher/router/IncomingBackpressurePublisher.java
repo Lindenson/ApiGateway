@@ -2,20 +2,17 @@ package org.hormigas.ws.ports.channel.ws.publisher.router;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.subscription.MultiEmitter;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.backpressure.incomming.IncommingPublisherMetrics;
-import org.hormigas.ws.backpressure.PublisherFactory;
-import org.hormigas.ws.backpressure.PublisherMetrics;
-import org.hormigas.ws.backpressure.PublisherWithBackPressure;
+import org.hormigas.ws.backpressure.builder.WithBackpressure;
+import org.hormigas.ws.backpressure.metrics.inout.IncommingPublisherMetrics;
+import org.hormigas.ws.backpressure.BackpressurePublisher;
 import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.core.router.InboundRouter;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageEnvelope;
 import org.hormigas.ws.feedback.provider.InEventProvider;
 import org.hormigas.ws.feedback.events.IncomingHealthEvent;
 
@@ -23,13 +20,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hormigas.ws.backpressure.PublisherFactory.Mode.SEQUENTIAL;
-import static org.hormigas.ws.backpressure.PublisherFactory.Publisher.INCOMING;
+import static org.hormigas.ws.backpressure.BackpressureBuilder.Mode.SEQUENTIAL;
+import static org.hormigas.ws.backpressure.BackpressureBuilder.PublisherKind.INCOMING;
 
 
 @Slf4j
 @ApplicationScoped
-public class IncomingPublisher implements PublisherWithBackPressure<Message> {
+public class IncomingBackpressurePublisher implements BackpressurePublisher<Message> {
 
 
     @Inject
@@ -55,7 +52,8 @@ public class IncomingPublisher implements PublisherWithBackPressure<Message> {
 
         metrics = new IncommingPublisherMetrics(meterRegistry, eventProvider);
 
-        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageEnvelope<Message>>>getFactoryFor(INCOMING)
+        WithBackpressure.<Message, IncommingPublisherMetrics>builder()
+                .withPublisherKind(INCOMING)
                 .withSink(pipelineRouter::routeIn)
                 .withQueueSizeCounter(queueSize)
                 .withEmitter(emitter)

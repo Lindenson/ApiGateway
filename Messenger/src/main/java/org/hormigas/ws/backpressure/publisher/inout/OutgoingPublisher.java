@@ -1,16 +1,25 @@
-package org.hormigas.ws.backpressure.outgoing;
+package org.hormigas.ws.backpressure.publisher.inout;
 
 import io.smallrye.mutiny.Uni;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.backpressure.factory.PublisherFactoryAbstract;
-import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.backpressure.metrics.PublisherMetrics;
+import org.hormigas.ws.backpressure.publisher.PublisherTemplate;
 import org.hormigas.ws.domain.MessageEnvelope;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Function;
+
 @Slf4j
-public class OutgoingPublisherFactory extends PublisherFactoryAbstract<Message, OutgoingPublisherMetrics, Uni<MessageEnvelope<Message>>> {
+public class OutgoingPublisher<T, M extends PublisherMetrics> extends PublisherTemplate<T, M> {
+
+    public OutgoingPublisher(Function<T, Uni<MessageEnvelope<T>>> sink,
+                             M metrics,
+                             AtomicInteger queueSizeContainer) {
+        super(sink, metrics, queueSizeContainer);
+    }
 
     @Override
-    protected Uni<Void> publishMessage(Message msg) {
+    public Uni<Void> publishMessage(T msg) {
         long start = System.nanoTime();
         return getSink().apply(msg)
                 .onItem().invoke(processed -> {

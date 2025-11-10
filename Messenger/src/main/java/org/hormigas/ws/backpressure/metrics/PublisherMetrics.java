@@ -1,4 +1,5 @@
-package org.hormigas.ws.backpressure;
+package org.hormigas.ws.backpressure.metrics;
+
 
 public interface PublisherMetrics {
     void recordDone();
@@ -6,4 +7,5 @@ public interface PublisherMetrics {
     void recordFailed();
     void updateQueueSize(int queueSize);
     void resetQueueSize();
+    void recordProcessingTime(long nanos);
 }

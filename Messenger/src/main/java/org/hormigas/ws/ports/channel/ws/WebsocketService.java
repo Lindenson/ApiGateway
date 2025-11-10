@@ -14,7 +14,7 @@ import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
 import org.hormigas.ws.ports.channel.ws.publisher.presence.PresencePublisher;
-import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingPublisher;
+import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingBackpressurePublisher;
 import org.hormigas.ws.ports.channel.ws.transformer.Transformer;
 import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 
@@ -26,7 +26,7 @@ import java.util.Optional;
 public class WebsocketService {
 
     @Inject
-    IncomingPublisher incomingPublisher;
+    IncomingBackpressurePublisher incomingPublisher;
 
     @Inject
     WebSocketUtils webSocketUtils;

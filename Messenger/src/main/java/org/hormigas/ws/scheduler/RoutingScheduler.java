@@ -13,7 +13,7 @@ import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.core.outbox.OutboxManager;
-import org.hormigas.ws.core.router.publisher.RoutingPublisher;
+import org.hormigas.ws.core.router.publisher.RoutingBackpressurePublisher;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.feedback.Regulator;
 
@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicLong;
 public class RoutingScheduler {
 
     @Inject
-    RoutingPublisher publisher;
+    RoutingBackpressurePublisher publisher;
 
     @Inject
     Regulator regulator;

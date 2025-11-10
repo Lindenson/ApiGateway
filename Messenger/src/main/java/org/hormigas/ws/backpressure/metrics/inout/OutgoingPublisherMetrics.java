@@ -1,10 +1,10 @@
-package org.hormigas.ws.backpressure.outgoing;
+package org.hormigas.ws.backpressure.metrics.inout;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;
-import org.hormigas.ws.backpressure.PublisherMetrics;
+import org.hormigas.ws.backpressure.metrics.PublisherMetrics;
 import org.hormigas.ws.feedback.provider.OutEventProvider;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
 

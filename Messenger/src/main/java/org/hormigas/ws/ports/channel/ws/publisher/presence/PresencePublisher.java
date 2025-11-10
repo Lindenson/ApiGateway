@@ -7,7 +7,7 @@ import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
 import org.hormigas.ws.ports.channel.presense.dto.ClientData;
 import org.hormigas.ws.ports.channel.presense.event.PresenceEventFactory;
-import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingPublisher;
+import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingBackpressurePublisher;
 
 import java.util.List;
 
@@ -16,7 +16,7 @@ import java.util.List;
 public class PresencePublisher {
 
     @Inject
-    IncomingPublisher incomingPublisher;
+    IncomingBackpressurePublisher incomingPublisher;
 
     @Inject
     PresenceEventFactory eventFactory;

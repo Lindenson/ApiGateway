@@ -2,20 +2,17 @@ package org.hormigas.ws.core.router.publisher;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.quarkus.logging.Log;
-import io.smallrye.mutiny.Uni;
 import io.smallrye.mutiny.subscription.MultiEmitter;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.backpressure.PublisherFactory;
-import org.hormigas.ws.backpressure.PublisherMetrics;
-import org.hormigas.ws.backpressure.PublisherWithBackPressure;
-import org.hormigas.ws.backpressure.outgoing.OutgoingPublisherMetrics;
+import org.hormigas.ws.backpressure.BackpressurePublisher;
+import org.hormigas.ws.backpressure.builder.WithBackpressure;
+import org.hormigas.ws.backpressure.metrics.inout.OutgoingPublisherMetrics;
 import org.hormigas.ws.config.MessagesConfig;
 import org.hormigas.ws.core.router.OutboundRouter;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageEnvelope;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
 import org.hormigas.ws.feedback.provider.OutEventProvider;
 
@@ -23,14 +20,13 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hormigas.ws.backpressure.PublisherFactory.Mode.PARALLEL;
-import static org.hormigas.ws.backpressure.PublisherFactory.Mode.SEQUENTIAL;
-import static org.hormigas.ws.backpressure.PublisherFactory.Publisher.OUTGOING;
+import static org.hormigas.ws.backpressure.BackpressureBuilder.Mode.SEQUENTIAL;
+import static org.hormigas.ws.backpressure.BackpressureBuilder.PublisherKind.OUTGOING;
 
 
 @Slf4j
 @ApplicationScoped
-public class RoutingPublisher implements PublisherWithBackPressure<Message> {
+public class RoutingBackpressurePublisher implements BackpressurePublisher<Message> {
 
     private final AtomicReference<MultiEmitter<? super Message>> emitter = new AtomicReference<>();
     private OutgoingPublisherMetrics metrics;
@@ -54,7 +50,8 @@ public class RoutingPublisher implements PublisherWithBackPressure<Message> {
     void init() {
         this.metrics = new OutgoingPublisherMetrics(meterRegistry, eventsProvider);
 
-        PublisherFactory.PublisherFactories.<Message, PublisherMetrics, Uni<MessageEnvelope<Message>>>getFactoryFor(OUTGOING)
+        WithBackpressure.<Message, OutgoingPublisherMetrics>builder()
+                .withPublisherKind(OUTGOING)
                 .withSink(pipelineRouter::routeOut)
                 .withMetrics(metrics)
                 .withQueueSizeCounter(queueSize)
