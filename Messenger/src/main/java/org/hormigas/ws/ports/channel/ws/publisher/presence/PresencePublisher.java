@@ -21,6 +21,9 @@ public class PresencePublisher {
     @Inject
     PresenceEventFactory eventFactory;
 
+    @Inject
+    GlobalUpdater globalUpdater;
+
     public void publishInit(ClientData newClient, ClientsRegistry<?> registry) {
         try {
             List<ClientData> all = registry.getAllOnlineClients();
@@ -35,6 +38,7 @@ public class PresencePublisher {
     public void publishJoin(ClientData client) {
         try {
             Message message = eventFactory.createJoinMessage(client);
+            globalUpdater.addPresence(client.id(), client.name());
             incomingPublisher.publish(message);
             log.debug("Published JOIN presence for {}", client.id());
         } catch (Exception e) {
@@ -45,6 +49,7 @@ public class PresencePublisher {
     public void publishLeave(ClientData client) {
         try {
             Message message = eventFactory.createLeaveMessage(client);
+            globalUpdater.removePresence(client.id());
             incomingPublisher.publish(message);
             log.debug("Published LEAVE presence for {}", client.id());
         } catch (Exception e) {

@@ -14,4 +14,7 @@ public interface ClientsRegistry<T> {
     ClientSession<T> getSessionByConnection(T connection);
     long countAllClients();
     List<ClientData> getAllOnlineClients();
+    boolean isClientConnected(String clientId);
+    void touch(ClientSession<T> clientSession);
+    void cleanUnused(T connection);
 }

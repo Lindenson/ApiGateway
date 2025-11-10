@@ -3,6 +3,7 @@ package org.hormigas.ws.ports.channel.ws;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Uni;
+import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClosedException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -15,7 +16,6 @@ import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
 import org.hormigas.ws.ports.channel.ws.publisher.presence.PresencePublisher;
 import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingBackpressurePublisher;
-import org.hormigas.ws.ports.channel.ws.transformer.Transformer;
 import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 
 import java.util.Optional;
@@ -38,9 +38,6 @@ public class WebsocketService {
     Validator<Message> validator;
 
     @Inject
-    Transformer<Message, WebSocketConnection> transformer;
-
-    @Inject
     ChannelFilter<Message, WebSocketConnection> channelFilter;
 
     @Inject
@@ -50,12 +47,13 @@ public class WebsocketService {
     ClientsRegistry<WebSocketConnection> registry;
 
 
+
     @OnOpen
     public void onOpen(WebSocketConnection connection) {
         webSocketUtils.getValidatedClientData(connection).ifPresentOrElse(client -> {
             registry.register(client, connection);
-            presencePublisher.publishInit(client, registry);
             presencePublisher.publishJoin(client);
+            presencePublisher.publishInit(client, registry);
         }, () -> connection.closeAndAwait(webSocketUtils.getCloseReason()));
     }
 
@@ -68,12 +66,12 @@ public class WebsocketService {
 
 
     @OnTextMessage
-    public Uni<Void> onMessage(String rawJson, WebSocketConnection conn) {
+    public Uni<Void> onMessage(String rawJson, WebSocketConnection connection) {
         log.debug("Receiving message {}", rawJson);
         try {
-            ClientSession<WebSocketConnection> clientSession = registry.getSessionByConnection(conn);
+            ClientSession<WebSocketConnection> clientSession = registry.getSessionByConnection(connection);
             if (clientSession == null) {
-                log.warn("Received message from unregistered connection: {}", conn.id());
+                log.warn("Received message from unregistered connection: {}", connection.id());
                 return Uni.createFrom().voidItem();
             }
             Message message = objectMapper.readValue(rawJson, Message.class);
