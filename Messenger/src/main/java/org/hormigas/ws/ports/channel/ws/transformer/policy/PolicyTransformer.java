@@ -5,7 +5,7 @@ import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
+import org.hormigas.ws.ports.channel.registry.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.transformer.Transformer;
 
 @ApplicationScoped

@@ -5,10 +5,9 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.channel.DeliveryChannel;
 import org.hormigas.ws.core.idempotency.IdempotencyManager;
-import org.hormigas.ws.core.presence.PresenceManager;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.core.router.stage.StageStatus;
@@ -24,9 +23,8 @@ import static org.hormigas.ws.core.router.stage.StageStatus.SKIPPED;
 @RequiredArgsConstructor
 public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
-    private final MessagesConfig messagesConfig;
+    private final MessengerConfig messengerConfig;
     private final DeliveryChannel<Message> channel;
-    private final PresenceManager presenceManager;
     private final IdempotencyManager<Message> idempotencyManager;
 
     private Duration minBackoff;
@@ -35,9 +33,9 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
     @PostConstruct
     void init() {
-        minBackoff = Duration.ofMillis(messagesConfig.channelRetry().minBackoffMs());
-        maxBackoff = Duration.ofMillis(messagesConfig.channelRetry().maxBackoffMs());
-        maxRetries = messagesConfig.channelRetry().maxRetries();
+        minBackoff = Duration.ofMillis(messengerConfig.channel().minBackoffMs());
+        maxBackoff = Duration.ofMillis(messengerConfig.channel().maxBackoffMs());
+        maxRetries = messengerConfig.channel().maxRetries();
     }
 
     @Override
@@ -64,7 +62,7 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
     private Uni<StageStatus> deliverWithRetry(RouterContext<Message> ctx) {
         Uni<StageStatus> delivery = channel.deliver(ctx.getPayload());
-        if (messagesConfig.channelRetry().retry()) {
+        if (messengerConfig.channel().retry()) {
             return delivery.onFailure().retry()
                     .withBackOff(minBackoff, maxBackoff)
                     .atMost(maxRetries);

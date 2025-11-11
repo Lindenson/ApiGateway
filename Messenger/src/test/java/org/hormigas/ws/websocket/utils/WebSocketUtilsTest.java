@@ -6,7 +6,7 @@ import io.quarkus.websockets.next.CloseReason;
 
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.presense.dto.ClientData;
+import org.hormigas.ws.ports.channel.registry.dto.ClientData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

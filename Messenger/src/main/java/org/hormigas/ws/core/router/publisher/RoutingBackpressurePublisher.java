@@ -10,7 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.backpressure.BackpressurePublisher;
 import org.hormigas.ws.backpressure.builder.WithBackpressure;
 import org.hormigas.ws.backpressure.metrics.inout.OutgoingPublisherMetrics;
-import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.router.OutboundRouter;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
@@ -41,7 +41,7 @@ public class RoutingBackpressurePublisher implements BackpressurePublisher<Messa
     OutboundRouter<Message> pipelineRouter;
 
     @Inject
-    MessagesConfig messagesConfig;
+    MessengerConfig messengerConfig;
 
     @Inject
     OutEventProvider<OutgoingHealthEvent> eventsProvider;
@@ -96,7 +96,7 @@ public class RoutingBackpressurePublisher implements BackpressurePublisher<Messa
     @Override
     public boolean queueIsFull() {
         metrics.updateQueueSize(queueSize.get());
-        if (queueSize.incrementAndGet() > messagesConfig.outbox().sendingQueueSize()) {
+        if (queueSize.incrementAndGet() > messengerConfig.outbound().queueSize()) {
             log.debug("Queue is full");
             queueSize.decrementAndGet();
             return true;

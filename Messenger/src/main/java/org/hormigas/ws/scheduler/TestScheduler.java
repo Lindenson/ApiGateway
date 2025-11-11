@@ -51,6 +51,7 @@ public class TestScheduler {
                     .messageId(idGenerator.generateId())
                     .conversationId(idGenerator.generateId())
                     .recipientId(clients.get(counter.get() % 2).clientId)
+                    .serverTimestamp(System.currentTimeMillis())
                     .senderId("server")
                     .clientTimestamp(System.currentTimeMillis())
                     .type(MessageType.CHAT_OUT)

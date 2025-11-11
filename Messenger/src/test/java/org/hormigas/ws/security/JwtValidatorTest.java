@@ -6,7 +6,7 @@ import com.nimbusds.jwt.SignedJWT;
 import com.nimbusds.jwt.proc.ConfigurableJWTProcessor;
 import org.hormigas.ws.ports.channel.ws.security.config.KeycloakConfig;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.presense.dto.ClientData;
+import org.hormigas.ws.ports.channel.registry.dto.ClientData;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;

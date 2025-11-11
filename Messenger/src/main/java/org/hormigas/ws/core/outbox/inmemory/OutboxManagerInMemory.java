@@ -3,16 +3,13 @@ package org.hormigas.ws.core.outbox.inmemory;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.core.idempotency.inmemory.ConcurrentInsertionOrderMap;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.MessageType;
 
-import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import java.util.function.Predicate;
 
 import static org.hormigas.ws.core.router.stage.StageStatus.*;
 
@@ -61,5 +58,15 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
         return batch.isEmpty()
                 ? Uni.createFrom().nothing()
                 : Uni.createFrom().item(batch);
+    }
+
+
+    @Override
+    public Uni<Long> collectGarbage(Predicate<Message> predicate) {
+        return Uni.createFrom().item(() -> {
+            long collected = messages.collectGarbageOptimized(predicate);
+            log.debug("Garbage collected {}", collected);
+            return collected;
+        });
     }
 }

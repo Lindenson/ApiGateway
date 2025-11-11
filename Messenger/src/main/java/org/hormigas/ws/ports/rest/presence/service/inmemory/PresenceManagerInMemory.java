@@ -4,8 +4,8 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hormigas.ws.core.presence.PresenceManager;
-import org.hormigas.ws.ports.rest.presence.service.Presence;
 import org.hormigas.ws.core.presence.dto.Member;
+import org.hormigas.ws.ports.rest.presence.service.Presence;
 
 import java.util.List;
 

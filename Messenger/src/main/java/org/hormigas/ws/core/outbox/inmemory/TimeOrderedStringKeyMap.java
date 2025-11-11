@@ -1,16 +1,20 @@
 package org.hormigas.ws.core.outbox.inmemory;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Predicate;
 
 /**
  * Потокобезопасная структура:
  * хранит элементы (ключ String → значение V), отсортированные по clientTimestamp (по возрастанию).
- *
+ * <p>
  * Предназначена для последовательного чтения блоками (от самых старых к новым).
  */
+@Slf4j
 public class TimeOrderedStringKeyMap<V> {
 
     private final ConcurrentHashMap<String, V> map = new ConcurrentHashMap<>();
@@ -18,7 +22,9 @@ public class TimeOrderedStringKeyMap<V> {
     private final ConcurrentSkipListSet<EntryKey> order = new ConcurrentSkipListSet<>();
     private final ReentrantLock lock = new ReentrantLock();
 
-    /** Функциональный интерфейс для получения timestamp из значения */
+    /**
+     * Функциональный интерфейс для получения timestamp из значения
+     */
     @FunctionalInterface
     public interface TimestampExtractor<V> {
         long getTimestamp(V value);
@@ -62,7 +68,9 @@ public class TimeOrderedStringKeyMap<V> {
         }
     }
 
-    /** Добавление, если отсутствует */
+    /**
+     * Добавление, если отсутствует
+     */
     public V putIfAbsent(String key, V value) {
         if (key == null || value == null) return null;
         lock.lock();
@@ -80,7 +88,9 @@ public class TimeOrderedStringKeyMap<V> {
         }
     }
 
-    /** Добавление с заменой существующего значения */
+    /**
+     * Добавление с заменой существующего значения
+     */
     public V putOrReplace(String key, V value) {
         if (key == null || value == null) return null;
         lock.lock();
@@ -98,7 +108,9 @@ public class TimeOrderedStringKeyMap<V> {
         }
     }
 
-    /** Удаление по ключу */
+    /**
+     * Удаление по ключу
+     */
     public V remove(String key) {
         if (key == null) return null;
         lock.lock();
@@ -112,18 +124,24 @@ public class TimeOrderedStringKeyMap<V> {
         }
     }
 
-    /** Получение по ключу */
+    /**
+     * Получение по ключу
+     */
     public V get(String key) {
         if (key == null) return null;
         return map.get(key);
     }
 
-    /** Количество элементов */
+    /**
+     * Количество элементов
+     */
     public int size() {
         return map.size();
     }
 
-    /** Проверка на пустоту */
+    /**
+     * Проверка на пустоту
+     */
     public boolean isEmpty() {
         return map.isEmpty();
     }
@@ -149,19 +167,25 @@ public class TimeOrderedStringKeyMap<V> {
         }
     }
 
-    /** Первый (самый старый) элемент без удаления */
+    /**
+     * Первый (самый старый) элемент без удаления
+     */
     public V peekFirst() {
         EntryKey first = order.isEmpty() ? null : order.first();
         return (first != null) ? map.get(first.id) : null;
     }
 
-    /** Последний (самый новый) элемент без удаления */
+    /**
+     * Последний (самый новый) элемент без удаления
+     */
     public V peekLast() {
         EntryKey last = order.isEmpty() ? null : order.last();
         return (last != null) ? map.get(last.id) : null;
     }
 
-    /** Удаление первых N элементов и возврат их */
+    /**
+     * Удаление первых N элементов и возврат их
+     */
     public List<V> pollFirstN(int n) {
         if (n <= 0) return Collections.emptyList();
         lock.lock();
@@ -179,5 +203,24 @@ public class TimeOrderedStringKeyMap<V> {
         } finally {
             lock.unlock();
         }
+    }
+
+
+    public long collectGarbageOptimized(Predicate<V> toBeRemoved) {
+        long collected = 0;
+        List<String> toRemove = map.entrySet().stream().filter(it -> toBeRemoved.test(it.getValue()))
+                .map(Map.Entry::getKey).toList();
+        if (!toRemove.isEmpty()) {
+            lock.lock();
+            try {
+                for (String ek : toRemove) {
+                    remove(ek);
+                    collected++;
+                }
+            } finally {
+                lock.unlock();
+            }
+        }
+        return collected;
     }
 }

@@ -45,19 +45,23 @@
 
   processing:
     messages:
-      outbox:
+      inbound:
+        queue-size: 3000
+      outbound:
         batch-size: 1500
-        sending-queue-size: 5000
-        incoming-queue-size: 5000
-      scheduler:
-        time-interval-ms: "800ms"
+        queue-size: 5000
+        polling-ms: "800ms"
       feedback:
-        base-interval-ms: 700
+        additional-ms: 700 # for polling-ms
         adjustment-factor: 0.9
         recovery-factor: 1.05
-      channel-retry:
+      channel:
+        retry: true
         max-backoff-ms: 300
         min-backoff-ms: 1000
         max-retries: 3
-        retry: true
+      credits:
+        max-value: 100
+        refill-rate-per-s: 10
+
 

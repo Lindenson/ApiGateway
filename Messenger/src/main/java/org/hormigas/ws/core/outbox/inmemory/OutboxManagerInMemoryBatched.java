@@ -3,16 +3,22 @@ package org.hormigas.ws.core.outbox.inmemory;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.core.history.History;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.core.router.stage.StageStatus;
 import org.hormigas.ws.domain.Message;
 
 import java.util.List;
+import java.util.function.Predicate;
 
 @Slf4j
 @ApplicationScoped
 public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
+
+    @Inject
+    History<Message> messageHistory;
 
     @PostConstruct
     public void close() {
@@ -26,6 +32,7 @@ public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
 
     @Override
     public Uni<StageStatus> saveToOutbox(Message payload) {
+        messageHistory.addMessage(payload.getRecipientId(), payload);
         return delegate.saveToOutbox(payload);
     }
 
@@ -42,5 +49,10 @@ public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
     @Override
     public Uni<List<Message>> getFromOutboxBatch(int batchSize) {
         return delegate.getFromOutboxBatch(batchSize);
+    }
+
+    @Override
+    public Uni<Long> collectGarbage(Predicate<Message> predicate) {
+        return delegate.collectGarbage(predicate);
     }
 }

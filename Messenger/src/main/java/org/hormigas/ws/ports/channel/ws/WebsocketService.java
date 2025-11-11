@@ -3,22 +3,18 @@ package org.hormigas.ws.ports.channel.ws;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.quarkus.websockets.next.*;
 import io.smallrye.mutiny.Uni;
-import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClosedException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.domain.Message;
 import org.hormigas.ws.domain.validator.Validator;
-import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
-import org.hormigas.ws.ports.channel.presense.dto.ClientData;
-import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
+import org.hormigas.ws.ports.channel.registry.ClientsRegistry;
+import org.hormigas.ws.ports.channel.registry.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
-import org.hormigas.ws.ports.channel.ws.publisher.presence.PresencePublisher;
-import org.hormigas.ws.ports.channel.ws.publisher.router.IncomingBackpressurePublisher;
+import org.hormigas.ws.ports.channel.ws.presence.Coordinator;
+import org.hormigas.ws.ports.channel.ws.publisher.InboundPublisher;
 import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
-
-import java.util.Optional;
 
 @Slf4j
 @WebSocket(path = "/ws")
@@ -26,7 +22,7 @@ import java.util.Optional;
 public class WebsocketService {
 
     @Inject
-    IncomingBackpressurePublisher incomingPublisher;
+    InboundPublisher incomingPublisher;
 
     @Inject
     WebSocketUtils webSocketUtils;
@@ -41,27 +37,22 @@ public class WebsocketService {
     ChannelFilter<Message, WebSocketConnection> channelFilter;
 
     @Inject
-    PresencePublisher presencePublisher;
-
-    @Inject
     ClientsRegistry<WebSocketConnection> registry;
 
+    @Inject
+    Coordinator<WebSocketConnection> coordinator;
 
 
     @OnOpen
     public void onOpen(WebSocketConnection connection) {
         webSocketUtils.getValidatedClientData(connection).ifPresentOrElse(client -> {
-            registry.register(client, connection);
-            presencePublisher.publishJoin(client);
-            presencePublisher.publishInit(client, registry);
+            coordinator.handleJoin(client, connection);
         }, () -> connection.closeAndAwait(webSocketUtils.getCloseReason()));
     }
 
     @OnClose
     public void onClose(WebSocketConnection connection) {
-        Optional.ofNullable(registry.deregister(connection))
-                .map(s -> new ClientData(s.getId(), s.getName()))
-                .ifPresent(presencePublisher::publishLeave);
+        coordinator.handleLeave(connection, System.currentTimeMillis());
     }
 
 
@@ -79,7 +70,7 @@ public class WebsocketService {
                 return Uni.createFrom().voidItem();
             }
             if (!validator.valid(message)) {
-                log.warn("Message didn't pass validation {}", message.getMessageId());
+                log.warn("Invalid message (id={}): {}", message.getMessageId(), message);
                 return Uni.createFrom().voidItem();
             }
             incomingPublisher.publish(message);
@@ -91,8 +82,10 @@ public class WebsocketService {
 
     @OnError
     public void onError(WebSocketConnection connection, Throwable throwable) {
-        registry.deregister(connection);
-        if (throwable instanceof HttpClosedException) log.warn("WebSocket connection closed", throwable);
-        log.error("WebSocket connection error ", throwable);
+        if (throwable instanceof HttpClosedException) {
+            log.warn("WebSocket connection closed: {}", connection.id());
+        } else {
+            log.error("WebSocket connection error for {}: {}", connection.id(), throwable.getMessage(), throwable);
+        }
     }
 }

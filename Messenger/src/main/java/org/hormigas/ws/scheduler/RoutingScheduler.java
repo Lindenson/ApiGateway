@@ -11,7 +11,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.outbox.OutboxManager;
 import org.hormigas.ws.core.router.publisher.RoutingBackpressurePublisher;
 import org.hormigas.ws.domain.Message;
@@ -38,7 +38,7 @@ public class RoutingScheduler {
     MeterRegistry registry;
 
     @Inject
-    MessagesConfig messagesConfig;
+    MessengerConfig messengerConfig;
 
 
     private Counter pollCounter;
@@ -75,7 +75,7 @@ public class RoutingScheduler {
                 .register(registry);
     }
 
-    @Scheduled(every = "${processing.messages.scheduler.time-interval-ms}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
+    @Scheduled(every = "${processing.messages.outbound.polling-ms}", concurrentExecution = Scheduled.ConcurrentExecution.SKIP)
     void pollOutbox() {
         long delayMs = regulator.getCurrentIntervalMs().toMillis();
         currentDelayMs.set(delayMs);
@@ -114,7 +114,7 @@ public class RoutingScheduler {
             return Uni.createFrom().voidItem();
         }
 
-        return outboxManager.getFromOutboxBatch(messagesConfig.outbox().batchSize())
+        return outboxManager.getFromOutboxBatch(messengerConfig.outbound().batchSize())
                 .invoke(messages -> {
                     lastBatchSize.set(messages.size());
                     messages.forEach(publisher::publish);

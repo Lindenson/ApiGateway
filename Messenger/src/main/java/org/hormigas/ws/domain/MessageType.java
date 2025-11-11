@@ -14,4 +14,5 @@ public enum MessageType {
     PRESENT_LEAVE,
 
     SERVICE_OUT,
+    WATERMARK
 }

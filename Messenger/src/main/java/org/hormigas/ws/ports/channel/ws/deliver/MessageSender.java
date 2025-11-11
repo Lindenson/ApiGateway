@@ -7,9 +7,11 @@ import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.channel.DeliveryChannel;
 import org.hormigas.ws.core.router.stage.StageStatus;
+import org.hormigas.ws.core.watermark.LeaveStamp;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.ports.channel.presense.ClientsRegistry;
-import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
+import org.hormigas.ws.ports.channel.registry.ClientsRegistry;
+import org.hormigas.ws.ports.channel.registry.dto.ClientSession;
+import org.hormigas.ws.ports.channel.ws.presence.Coordinator;
 import org.hormigas.ws.ports.channel.ws.transformer.Transformer;
 import org.hormigas.ws.ports.channel.ws.utils.WebSocketUtils;
 
@@ -17,7 +19,7 @@ import java.util.Optional;
 
 import static org.hormigas.ws.core.router.stage.StageStatus.FAILED;
 import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
-import static org.hormigas.ws.ports.channel.presense.event.PresenceEventFactory.BROADCAST;
+import static org.hormigas.ws.ports.channel.registry.event.PresenceEventFactory.BROADCAST;
 
 @Slf4j
 @ApplicationScoped
@@ -32,7 +34,11 @@ public class MessageSender implements DeliveryChannel<Message> {
     @Inject
     WebSocketUtils utils;
 
+    @Inject
+    Coordinator<WebSocketConnection> coordinator;
+
     public Uni<StageStatus> deliver(Message message) {
+        long timestamp = System.currentTimeMillis();
         if (BROADCAST.equals(message.getRecipientId())) {
             return sendBroadcast(message)
                     .replaceWith(SUCCESS)
@@ -46,7 +52,8 @@ public class MessageSender implements DeliveryChannel<Message> {
                 .toList();
 
         if (unis.isEmpty()) {
-            log.warn("No active sessions for recipient {}", message.getRecipientId());
+            log.info("No active sessions for recipient {}", message.getRecipientId());
+            coordinator.handleAbsent(message.getRecipientId(), timestamp);
             return Uni.createFrom().item(StageStatus.SKIPPED);
         }
 

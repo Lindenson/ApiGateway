@@ -59,6 +59,17 @@ spring:
                 name: internalCB
                 fallbackUri: forward:/fallback
 
+        - id: messenger-api
+          uri: lb://chat-apis
+          predicates:
+            - Path=/chat/**
+          filters:
+            - RewritePath=/chat/(?<segment>.*),/$\{segment}
+            - name: CircuitBreaker
+              args:
+                name: internalCB
+                fallbackUri: forward:/fallback
+
         - id: messenger-service
           uri: lb:ws://messengers
           predicates:
@@ -86,6 +97,7 @@ spring:
           masters: /q/health
           clients: /q/health
           messengers: /q/health
+          chat-apis: /q/health
       stats:
         micrometer:
           enabled: true
@@ -112,6 +124,11 @@ spring:
 #                serviceId: clients
 #                host: client-service
 #                port: 8089
+            chat-apis:
+              - instanceId: chat-api1
+                serviceId: chat-apis
+                host: messenger
+                port: 8080
             messengers:
               - instanceId: messenger1
                 serviceId: messengers

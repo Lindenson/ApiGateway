@@ -5,7 +5,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.enterprise.event.ObservesAsync;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.config.MessagesConfig;
+import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.feedback.Regulator;
 import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
 
@@ -21,13 +21,13 @@ public class FeedbackRegulator implements Regulator {
     private final AtomicLong currentIntervalMs = new AtomicLong();
 
     @Inject
-    MessagesConfig messagesConfig;
+    MessengerConfig messengerConfig;
 
     @PostConstruct
     public void init() {
-        adjustmentFactor = messagesConfig.feedback().adjustmentFactor();
-        baseIntervalMs = messagesConfig.feedback().baseIntervalMs();
-        recoveryFactor = messagesConfig.feedback().recoveryFactor();
+        adjustmentFactor = messengerConfig.feedback().adjustmentFactor();
+        baseIntervalMs = messengerConfig.feedback().additionalMs();
+        recoveryFactor = messengerConfig.feedback().recoveryFactor();
         currentIntervalMs.set(baseIntervalMs);
     }
 

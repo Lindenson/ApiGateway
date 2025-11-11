@@ -12,7 +12,7 @@ import io.vertx.core.json.Json;
 import org.hormigas.ws.domen.Message;
 import org.hormigas.ws.ports.channel.ws.mappers.dto.SocketMessage;
 import org.hormigas.ws.ports.channel.ws.security.JwtValidator;
-import org.hormigas.ws.ports.channel.presense.dto.ClientData;
+import org.hormigas.ws.ports.channel.registry.dto.ClientData;
 import org.hormigas.ws.service.ClientMessagePersistence;
 import org.junit.jupiter.api.Test;
 

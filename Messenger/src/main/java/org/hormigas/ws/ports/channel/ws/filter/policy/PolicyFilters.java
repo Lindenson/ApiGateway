@@ -8,7 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.credits.CreditPolicy;
 import org.hormigas.ws.credits.policy.InboundMessageCreditPolicy;
 import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.ports.channel.presense.dto.ClientSession;
+import org.hormigas.ws.ports.channel.registry.dto.ClientSession;
 import org.hormigas.ws.ports.channel.ws.filter.ChannelFilter;
 
 @Slf4j
