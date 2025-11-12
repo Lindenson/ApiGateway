@@ -12,9 +12,9 @@ import org.hormigas.ws.core.router.logger.inout.OutboundRouterLogger;
 import org.hormigas.ws.core.router.stage.stages.CacheStage;
 import org.hormigas.ws.core.router.stage.stages.DeliveryStage;
 import org.hormigas.ws.core.router.stage.stages.FinalStage;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageEnvelope;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageEnvelope;
+import org.hormigas.ws.domain.message.MessageType;
 
 @Slf4j
 @ApplicationScoped

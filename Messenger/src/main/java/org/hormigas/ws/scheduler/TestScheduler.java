@@ -8,15 +8,12 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.Builder;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.core.outbox.OutboxManager;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.ports.outbox.OutboxManager;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageType;
 import org.hormigas.ws.domain.generator.IdGenerator;
 
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.concurrent.atomic.AtomicInteger;
 
 

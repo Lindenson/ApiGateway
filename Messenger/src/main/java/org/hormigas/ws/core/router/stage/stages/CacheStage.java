@@ -3,13 +3,12 @@ package org.hormigas.ws.core.router.stage.stages;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
-import org.hormigas.ws.core.idempotency.IdempotencyManager;
+import org.hormigas.ws.ports.idempotency.IdempotencyManager;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.core.router.stage.StageStatus;
-import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.message.Message;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
+import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @ApplicationScoped
 @RequiredArgsConstructor

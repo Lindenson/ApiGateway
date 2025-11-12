@@ -5,10 +5,9 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.With;
 import org.hormigas.ws.core.router.PipelineResolver;
-import org.hormigas.ws.core.router.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageStatus;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.FAILED;
-import static org.hormigas.ws.core.router.stage.StageStatus.UNKNOWN;
+import static org.hormigas.ws.domain.stage.StageStatus.UNKNOWN;
 
 @Data
 @Builder

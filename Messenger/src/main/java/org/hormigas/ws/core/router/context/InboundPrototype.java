@@ -2,14 +2,12 @@ package org.hormigas.ws.core.router.context;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageType;
 import org.hormigas.ws.domain.generator.IdGenerator;
 
-import java.util.Map;
-
 import static org.hormigas.ws.core.router.PipelineResolver.PipelineType;
-import static org.hormigas.ws.domain.MessageType.*;
+import static org.hormigas.ws.domain.message.MessageType.*;
 
 
 @ApplicationScoped

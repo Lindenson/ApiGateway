@@ -6,17 +6,17 @@ import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessengerConfig;
-import org.hormigas.ws.core.channel.DeliveryChannel;
-import org.hormigas.ws.core.idempotency.IdempotencyManager;
+import org.hormigas.ws.ports.channel.DeliveryChannel;
+import org.hormigas.ws.ports.idempotency.IdempotencyManager;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.core.router.stage.StageStatus;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageType;
 
 import java.time.Duration;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.SKIPPED;
+import static org.hormigas.ws.domain.stage.StageStatus.SKIPPED;
 
 @Slf4j
 @ApplicationScoped

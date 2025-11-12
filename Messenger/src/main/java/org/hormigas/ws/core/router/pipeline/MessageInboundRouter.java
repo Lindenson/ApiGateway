@@ -10,9 +10,9 @@ import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.logger.RouterLogger;
 import org.hormigas.ws.core.router.logger.inout.InboundRouterLogger;
 import org.hormigas.ws.core.router.stage.stages.*;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageEnvelope;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageEnvelope;
+import org.hormigas.ws.domain.message.MessageType;
 
 @Slf4j
 @ApplicationScoped

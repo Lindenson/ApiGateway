@@ -3,9 +3,9 @@ package org.hormigas.ws.core.router.logger.inout;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.logger.RouterLogger;
-import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.message.Message;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
+import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @Slf4j
 public class InboundRouterLogger implements RouterLogger<Message> {

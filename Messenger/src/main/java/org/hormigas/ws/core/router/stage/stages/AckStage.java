@@ -1,18 +1,16 @@
 package org.hormigas.ws.core.router.stage.stages;
 
 import io.smallrye.mutiny.Uni;
-import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
-import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.domain.Message;
+import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.generator.IdGenerator;
 
-import static org.hormigas.ws.core.router.stage.StageStatus.SUCCESS;
-import static org.hormigas.ws.domain.MessageType.CHAT_ACK;
+import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
+import static org.hormigas.ws.domain.message.MessageType.CHAT_ACK;
 
 @Slf4j
 @ApplicationScoped

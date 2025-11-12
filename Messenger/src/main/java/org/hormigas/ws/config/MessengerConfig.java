@@ -10,6 +10,7 @@ public interface MessengerConfig {
     Feedback feedback();
     Channel channel();
     Credits credits();
+    Collector collector();
 
     interface Inbound {
         int queueSize();
@@ -39,4 +40,8 @@ public interface MessengerConfig {
         int refillRatePerS();
     }
 
+    interface Collector {
+        int maxWatermarks();
+        String everyS();
+    }
 }

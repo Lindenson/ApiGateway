@@ -7,21 +7,21 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.backpressure.BackpressurePublisher;
-import org.hormigas.ws.backpressure.builder.WithBackpressure;
-import org.hormigas.ws.backpressure.metrics.inout.OutgoingPublisherMetrics;
+import org.hormigas.ws.core.backpressure.BackpressurePublisher;
+import org.hormigas.ws.core.backpressure.builder.WithBackpressure;
+import org.hormigas.ws.core.backpressure.metrics.inout.OutgoingPublisherMetrics;
 import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.router.OutboundRouter;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.feedback.events.OutgoingHealthEvent;
-import org.hormigas.ws.feedback.provider.OutEventProvider;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.core.feedback.events.OutgoingHealthEvent;
+import org.hormigas.ws.core.feedback.provider.OutEventProvider;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hormigas.ws.backpressure.BackpressureBuilder.Mode.SEQUENTIAL;
-import static org.hormigas.ws.backpressure.BackpressureBuilder.PublisherKind.OUTGOING;
+import static org.hormigas.ws.core.backpressure.BackpressureBuilder.Mode.SEQUENTIAL;
+import static org.hormigas.ws.core.backpressure.BackpressureBuilder.PublisherKind.OUTGOING;
 
 
 @Slf4j

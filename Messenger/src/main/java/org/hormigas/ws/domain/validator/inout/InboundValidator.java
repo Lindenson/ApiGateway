@@ -2,13 +2,13 @@ package org.hormigas.ws.domain.validator.inout;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageType;
 import org.hormigas.ws.domain.validator.Validator;
 
 import java.util.Objects;
 
-import static org.hormigas.ws.domain.MessageType.*;
+import static org.hormigas.ws.domain.message.MessageType.*;
 
 @Slf4j
 @ApplicationScoped

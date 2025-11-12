@@ -3,14 +3,14 @@ package org.hormigas.ws.core.router.pipeline;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.PipelineResolver;
-import org.hormigas.ws.domain.Message;
-import org.hormigas.ws.domain.MessageType;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.message.MessageType;
 
 import java.util.EnumMap;
 import java.util.Map;
 
 import static org.hormigas.ws.core.router.PipelineResolver.PipelineType.*;
-import static org.hormigas.ws.domain.MessageType.*;
+import static org.hormigas.ws.domain.message.MessageType.*;
 
 
 @Slf4j
