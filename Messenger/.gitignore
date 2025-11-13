@@ -45,5 +45,5 @@ nb-configuration.xml
 .certs/
 
 #Databases
-Redis/data/
-Postgres/
+../Redis/
+../Postgres/
