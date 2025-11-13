@@ -1,659 +1,660 @@
-# 📨 Реактивный мессенджер
+# 📨 Reactive Messenger
 
-## 📘 Содержание
+> 🌍 Other languages:
+> - [Russian](./README.ru.md)
+> - [English](./README.md)
 
-1. [📨 Реактивный мессенджер — обзор](#-реактивный-мессенджер)
-2. [🚀 Ключевая идея](#-ключевая-идея)
-3. [🧩 Основные технологии](#-основные-технологии)
-4. [🧭 Идеология проекта](#-идеология-проекта)
-5. [⚙️ 1. Ядро системы — Машина состояний (Pipeline)](#️-1-ядро-системы--машина-состояний-pipeline)
-6. [⚡️ 2. Реактивная модель и управление нагрузкой](#️-2-реактивная-модель-и-управление-нагрузкой)
-7. [💳 3. Механизм кредитов пользователей](#-3-механизм-кредитов-пользователей)
-8. [🧱 4. Архитектурный подход — Hexagonal Architecture](#-4-архитектурный-подход--hexagonal-architecture)
-9. [🧾 5. Гарантии и цели](#-5-гарантии-и-цели)
-10. [💬 6. Типы сообщений и их маршруты](#-6-типы-сообщений-и-их-маршруты)
-11. [🧹 7. Механизм очистки Outbox (Garbage Collector)](#-7-механизм-очистки-outbox-garbage-collector)
-12. [🧭 8. Горизонтальное масштабирование и шардирование клиентов](#-8-горизонтальное-масштабирование-и-шардирование-клиентов)
-13. [🛡️ 9. Идемпотентность и предотвращение повторной отправки сообщений](#️-9-идемпотентность-и-предотвращение-повторной-отправки-сообщений)
-14. [🗄️ 10. Outbox на PostgreSQL и управление вычеткой](#️-10-outbox-на-postgresql-и-управление-вычеткой)
-15. [🧩 11. Структура папок проекта](#-11-структура-папок-проекта)
-16. [🧭 Итоги и дальнейшее развитие](#-итоги-и-дальнейшее-развитие)
-17. [🧩 PS. Продвинутая архитектура масштабируемого acknowledgment и очистки (Tetris Model)](#-ps-продвинутая-архитектура-масштабируемого-acknowledgment-и-очистки-tetris-model)
-18. [📖 PSS. Термины и объяснения](#-pss-термины-и-объяснения)
+## 📘 Contents
 
----
-
-
-**Модуль реактивного обмена сообщениями**, разработанный на **Java + Quarkus** с использованием **Mutiny** и принципов **Hexagonal Architecture**.  
-Проект предназначен для построения масштабируемых, отказоустойчивых и реактивных коммуникационных систем с гарантированной доставкой сообщений и адаптивным управлением нагрузкой.
+1. [📨 Reactive Messenger — Overview](#-reactive-messenger)
+2. [🚀 Key Idea](#-key-idea)
+3. [🧩 Core Technologies](#-core-technologies)
+4. [🧭 Project Ideology](#-project-ideology)
+5. [⚙️ 1. System Core — State Machine (Pipeline)](#-1-system-core--state-machine-pipeline)
+6. [⚡️ 2. Reactive Model and Load Management](#-2-reactive-model-and-load-management)
+7. [💳 3. User Credit Mechanism](#-3-user-credit-mechanism)
+8. [🧱 4. Architectural Approach — Hexagonal Architecture](#-4-architectural-approach--hexagonal-architecture)
+9. [🧾 5. Guarantees and Goals](#-5-guarantees-and-goals)
+10. [💬 6. Message Types and Their Routes](#-6-message-types-and-their-routes)
+11. [🧹 7. Outbox Cleanup Mechanism (Garbage Collector)](#-7-outbox-cleanup-garbage-collector)
+12. [🧭 8. Horizontal Scaling and Client Sharding](#-8-horizontal-scaling-and-client-sharding)
+13. [🛡️ 9. Idempotency and Prevention of Message Resending](#️-9-idempotency-and-prevention-of-message-resending)
+14. [🗄️ 10. Outbox on PostgreSQL and Fetch Management](#️-10-outbox-on-postgresql-and-fetch-management)
+15. [🧩 11. Project Folder Structure](#-11-project-folder-structure)
+16. [🧭 Summary and Future Development](#-summary-and-future-development)
+17. [🧩 PS. Advanced Scalable Acknowledgment and Cleanup Architecture (Tetris Model)](#-ps-advanced-scalable-acknowledgment-and-cleanup-architecture-tetris-model)
+18. [📖 PSS. Terms and Explanations](#-pss-terms-and-explanations)
 
 ---
 
-## 🚀 Ключевая идея
-
-Мессенджер основан на концепции **реактивного конвейера (pipeline)**,  
-в котором каждое сообщение проходит серию асинхронных стадий: валидация, персистентность, доставка, подтверждение и финализация.
-
-Система построена вокруг **чистого домена** (core) и **настраиваемых портов** (ports/adapters),  
-что делает её гибкой, тестируемой и легко расширяемой под конкретные инфраструктуры.
+**Reactive messaging module**, developed in **Java + Quarkus** using **Mutiny** and **Hexagonal Architecture** principles.  
+The project is designed for building scalable, fault-tolerant, and reactive communication systems with guaranteed message delivery and adaptive load management.
 
 ---
 
-## 🧩 Основные технологии
+## 🚀 Key Idea
 
-| Компонент | Используемая технология | Назначение |
-|------------|-------------------------|-------------|
-| ☕ **Java 21+** | Основной язык | Производительность, реактивная модель, типобезопасность |
-| ⚡ **Quarkus** | Фреймворк приложения | Высокая скорость запуска, малое потребление ресурсов |
-| 🔁 **Mutiny** | Реактивная библиотека | Потоки данных, асинхронные пайплайны |
-| 🧠 **Hexagonal Architecture** | Архитектурный шаблон | Изоляция бизнес-логики от инфраструктуры |
-| 🧱 **PostgreSQL** | Персистентное хранилище | Реализация паттерна Outbox и истории сообщений |
-| ⚙️ **Redis** | In-memory кэш | Присутствие, идемпотентность, хранение watermark |
-| 🔐 **Keycloak** | Аутентификация и авторизация | Проверка токенов, ролевой доступ |
-| 🌐 **API Gateway** | Внешний шлюз | Балансировка клиентов и маршрутизация WebSocket-сессий |
+The messenger is based on the concept of a **reactive pipeline**,  
+where each message goes through a series of asynchronous stages: validation, persistence, delivery, acknowledgment, and finalization.
+
+The system is built around a **clean domain** (core) and **configurable ports** (ports/adapters),  
+making it flexible, testable, and easily extensible for specific infrastructures.
 
 ---
 
-## 🧭 Идеология проекта
+## 🧩 Core Technologies
 
-**Реактивный мессенджер** — это не просто чат.  
-Это архитектурная платформа для построения сложных коммуникационных систем с гарантированной доставкой и контролем потока данных.
-
-Основные цели:
-- 💬 **Гарантированная доставка сообщений** с подтверждениями и устойчивостью к сбоям;
-- ⚙️ **Управляемая нагрузка** (backpressure, буферы, кредиты, метрики);
-- 🧩 **Гибкость и расширяемость** через динамическую сборку стадий пайплайна;
-- 🔒 **Безопасность и контроль доступа** (OAuth2, Keycloak, роли);
-- 🌍 **Масштабируемость и fault-tolerance** за счёт разделения ответственности и горизонтального шардирования;
-- 🧠 **Независимость от инфраструктуры** — все компоненты можно заменить, не трогая домен.
-
----
-
-## ⚙️ 1. Ядро системы — Машина состояний (Pipeline)
-
-В основе мессенджера лежит **машина состояний**, реализованная как **гибкий конвейер (pipeline)**.  
-Каждое сообщение проходит через набор стадий, определяемых его типом — чатовым, сигнальным, техническим и т.д.
-
-### 🔩 Основные стадии пайплайна
-1. **Валидация** — проверка корректности данных и прав доступа.
-2. **Сохранение в БД** — персистентность через порт (PostgreSQL или другое хранилище).
-3. **Отправка ACK** — подтверждение отправителю.
-4. **Кэширование** — запись в Redis для быстрого доступа.
-5. **Доставка** — передача получателю через WebSocket или другой транспорт.
-6. **Финализация** — завершение цепочки, обработка ошибок и компенсаций.
-
-Пайплайн **динамически собирается резольвером** на основе конфигурации или бизнес-контекста, что позволяет:
-- легко добавлять новые типы сообщений;
-- переиспользовать готовые стадии;
-- адаптировать маршруты без изменения кода ядра.
+| Component | Technology Used | Purpose |
+|-----------|-----------------|---------|
+| ☕ **Java 21+** | Main language | Performance, reactive model, type safety |
+| ⚡ **Quarkus** | Application framework | Fast startup, low resource consumption |
+| 🔁 **Mutiny** | Reactive library | Data streams, asynchronous pipelines |
+| 🧠 **Hexagonal Architecture** | Architectural pattern | Isolation of business logic from infrastructure |
+| 🧱 **PostgreSQL** | Persistent storage | Implementation of the Outbox pattern and message history |
+| ⚙️ **Redis** | In-memory cache | Presence, idempotency, storing watermarks |
+| 🔐 **Keycloak** | Authentication and authorization | Token validation, role-based access |
+| 🌐 **API Gateway** | External gateway | Client load balancing and WebSocket session routing |
 
 ---
 
-## ⚡️ 2. Реактивная модель и управление нагрузкой
+## 🧭 Project Ideology
 
-Система построена на **реактивных потоках**, где каждая стадия работает асинхронно и независимо.
+**Reactive Messenger** is not just a chat.  
+It is an architectural platform for building complex communication systems with guaranteed delivery and data flow control.
 
-### 🧩 Механизм буферизации
-- Между стадиями расположены **реактивные буферы**, выравнивающие скорость обработки.
-- При переполнении — сообщения могут дропаться с логированием и метриками.
-- Все показатели производительности публикуются в **Prometheus**.
-
-### 🔁 Контур обратной связи
-Если система перегружена:
-- замедляется чтение входящих данных (outbox = база данных);
-- система стабилизируется без потери сообщений;
-- при снижении нагрузки автоматически возвращается к нормальному режиму.
+Key goals:
+- 💬 **Guaranteed message delivery** with acknowledgments and fault tolerance;
+- ⚙️ **Load management** (backpressure, buffers, credits, metrics);
+- 🧩 **Flexibility and extensibility** via dynamic pipeline stage assembly;
+- 🔒 **Security and access control** (OAuth2, Keycloak, roles);
+- 🌍 **Scalability and fault-tolerance** through responsibility separation and horizontal sharding;
+- 🧠 **Infrastructure independence** — all components can be replaced without changing the domain.
 
 ---
 
-## 💳 3. Механизм кредитов пользователей
+## ⚙️ 1. System Core — State Machine (Pipeline)
 
-Для предотвращения перегрузки со стороны клиентов используется **система кредитов**:
-- каждому пользователю выделяется ограниченный пул кредитов на отправку сообщений;
-- кредиты **восстанавливаются** с течением времени (например, каждые 10 секунд);
-- при исчерпании лимита сообщение **отклоняется**, а клиент получает уведомление.
+The core of the messenger is a **state machine**, implemented as a **flexible pipeline**.  
+Each message goes through a set of stages determined by its type — chat, signaling, technical, etc.
 
-Это реализует **backpressure на уровне клиента**, предотвращая лавинообразные нагрузки.
+### 🔩 Main Pipeline Stages
+1. **Validation** — checking data integrity and access rights.
+2. **Saving to DB** — persistence via a port (PostgreSQL or another storage).
+3. **Sending ACK** — acknowledgment to the sender.
+4. **Caching** — storing in Redis for fast access.
+5. **Delivery** — transmitting to the receiver via WebSocket or another transport.
+6. **Finalization** — closing the chain, error handling, and compensation.
 
----
-
-## 🧱 4. Архитектурный подход — Hexagonal Architecture
-
-Архитектура разделена на **ядро (домен)** и **инфраструктуру**:
-
-| Слой | Описание                                                        |
-|------|-----------------------------------------------------------------|
-| 🧠 **Домен** | Бизнес-логика пайплайнов, стадий и резольверов                 |
-| 🔌 **Порты и адаптеры** | Интеграции с инфраструктурой (PostgreSQL, Redis, WebSocket...) |
-
-Такой подход:
-- изолирует бизнес-логику от инфраструктуры;
-- упрощает тестирование и замену технологий;
-- обеспечивает лёгкое горизонтальное масштабирование.
+The pipeline is **dynamically assembled by the resolver** based on configuration or business context, allowing for:
+- easy addition of new message types;
+- reuse of existing stages;
+- adapting routes without changing the core code.
 
 ---
 
-## 🧾 5. Гарантии и цели
+## ⚡️ 2. Reactive Model and Load Management
 
-- Используется **паттерн Outbox** для гарантированной доставки.
-- Есть **кэш присутствия пользователей** для исключения попыток доставки неактивным клиентам.
-- Целевая производительность: **≥ 1000 сообщений/секунду** (с возможностью оптимизации).
+The system is built on **reactive streams**, where each stage works asynchronously and independently.
 
----
+### 🧩 Buffering Mechanism
+- Between stages, there are **reactive buffers** that equalize processing speed.
+- In case of overflow, messages may be dropped with logging and metrics.
+- All performance indicators are published to **Prometheus**.
 
-## 💬 6. Типы сообщений и их маршруты
-
-### 💡 1. Обычное чат-сообщение (Client → Client)
-**Назначение:** передача пользовательского сообщения с гарантией доставки.
-
-**Этапы пайплайна:**
-1. Получение от клиента
-2. Валидация (права, формат, кредиты)
-3. Сохранение в БД (Outbox)
-4. ACK отправителю
-5. Попытка доставки получателю
-6. ACK от получателя
-7. Обновление состояния в БД
-8. Финализация (повторная доставка при необходимости)
-
-**Особенности:**
-- Гарантированная доставка
-- Повторные попытки
-- Дедупликация при масштабировании
+### 🔁 Feedback Loop
+If the system is overloaded:
+- incoming data reading slows down (outbox = database);
+- the system stabilizes without losing messages;
+- once the load decreases, it automatically returns to normal operation.
 
 ---
 
-### 📞 2. Сигнальное сообщение (например, видеозвонок)
-**Назначение:** передача событий реального времени **без персистентности**.
+## 💳 3. User Credit Mechanism
 
-**Этапы:**
-1. Получение от клиента
-2. Минимальная валидация
-3. Временное хранение (для дедупликации)
-4. ACK отправителю
-5. Отправка сигнала получателю
-6. Финализация
+To prevent client overload, a **credit system** is used:
+- each user is allocated a limited pool of credits for message sending;
+- credits **replenish** over time (e.g., every 10 seconds);
+- when the limit is reached, the message is **rejected**, and the client receives a notification.
 
-**Особенности:**
-- Не сохраняется в БД
-- Короткий жизненный цикл
-- Уникальный `messageId` + `senderId`
+This implements **backpressure at the client level**, preventing avalanche load.
 
 ---
 
-### 📎 3. Сообщение с вложением (файлы, изображения, видео)
-**Назначение:** асинхронная передача контента с подтверждением загрузки.
+## 🧱 4. Architectural Approach — Hexagonal Architecture
 
-**Этапы:**
-1. Получение метаданных
-2. Валидация
-3. Генерация `upload URL` и токена
-4. ACK клиенту
-5. Загрузка файла в хранилище (MinIO и т.п.)
-6. Webhook от хранилища
-7. Формирование технического сообщения
-8. Уведомление участников чата
-9. Финализация
+The architecture is divided into **core (domain)** and **infrastructure**:
 
-**Особенности:**
-- Двухфазная логика (`инициация` → `завершение`)
-- Асинхронный webhook-цикл
-- Интеграция с S3-совместимыми хранилищами
+| Layer | Description |
+|-------|-------------|
+| 🧠 **Domain** | Business logic of pipelines, stages, and resolvers |
+| 🔌 **Ports and Adapters** | Integration with infrastructure (PostgreSQL, Redis, WebSocket...) |
+
+This approach:
+- isolates business logic from infrastructure;
+- simplifies testing and technology replacement;
+- ensures easy horizontal scaling.
 
 ---
 
-### ⚙️ 4. Технические системные сообщения
-**Назначение:** передача управляющих сигналов и уведомлений.
+## 🧾 5. Guarantees and Goals
 
-**Примеры:**
-- предупреждения о перегрузке или лимите кредитов;
-- уведомления о разрывах соединений;
-- события изменения состояния пользователя.
-
-**Этапы:**
-1. Генерация на сервере
-2. Отправка клиенту напрямую
-3. Без ACK и без хранения
+- The **Outbox pattern** is used for guaranteed delivery.
+- There is a **user presence cache** to avoid delivery attempts to inactive clients.
+- Target performance: **≥ 1000 messages/sec** (with optimization potential).
 
 ---
 
-### 🚀 5. Дополнительные типы (для расширения)
-- События **presence** (статус пользователя)
-- Синхронизация истории
-- Командные сообщения (редактирование, реакция, удаление)
-- События мониторинга и аналитики
+## 💬 6. Message Types and Their Routes
+
+### 💡 1. Regular Chat Message (Client → Client)
+**Purpose:** transferring a user message with guaranteed delivery.
+
+**Pipeline Stages:**
+1. Receive from client
+2. Validation (rights, format, credits)
+3. Save to DB (Outbox)
+4. ACK to sender
+5. Attempt delivery to receiver
+6. ACK from receiver
+7. Update state in DB
+8. Finalization (retry delivery if needed)
+
+**Features:**
+- Guaranteed delivery
+- Retry attempts
+- Deduplication during scaling
 
 ---
 
+### 📞 2. Signaling Message (e.g., video call)
+**Purpose:** transmitting real-time events **without persistence**.
 
-## 🧹 7. Механизм очистки Outbox (Garbage Collector)
+**Stages:**
+1. Receive from client
+2. Minimal validation
+3. Temporary storage (for deduplication)
+4. ACK to sender
+5. Send signal to receiver
+6. Finalization
 
-Для предотвращения разрастания таблицы **Outbox** и сохранения актуальности данных используется механизм **водяных знаков (Watermarks)**, синхронизированный с жизненным циклом **WebSocket-сессий**.
-
----
-
-### 🔖 Основная идея
-
-Каждое сообщение записывается **одновременно** в два хранилища:
-- **History** — долговременное хранилище всех сообщений;
-- **Outbox** — временный буфер доставки активным клиентам.
-
-Когда клиент **отключается** от WebSocket-сессии (logout, timeout, disconnect), сервер фиксирует **водяной знак (watermark)** — отметку последнего доставленного сообщения.  
-Эта отметка хранится в **локальном кэше** (или Redis, если требуется распределённость) и используется сборщиком мусора для очистки Outbox.
-
----
-
-### ⚙️ Механизм работы
-
-1. **Создание Watermark**  
-   При разрыве соединения компонент `SessionManager` записывает в `WatermarkRegistry` идентификатор последнего доставленного сообщения или временную метку (`timestamp`).
-
-2. **Хранение Watermark**  
-   Водяной знак сохраняется в локальной памяти или Redis и живёт до следующего подключения клиента.  
-   Он определяет нижнюю границу сообщений, которые клиент уже гарантированно получил.
-
-3. **Очистка Outbox**  
-   Периодический процесс (`GarbageCollector`), запускаемый `GarbageScheduler`, анализирует Watermarks всех клиентов.  
-   Для каждого клиента удаляются все сообщения из Outbox, чья позиция **меньше или равна** соответствующему Watermark.
-
-4. **Безопасность удаления**  
-   Так как все сообщения уже сохранены в History, очистка Outbox **не приводит к потере данных**.  
-   При новом подключении клиент восстанавливает контекст, запрашивая историю начиная с Watermark.
+**Features:**
+- Not saved in DB
+- Short lifecycle
+- Unique `messageId` + `senderId`
 
 ---
 
-### 🧩 Преимущества
+### 📎 3. Message with Attachment (files, images, videos)
+**Purpose:** asynchronous content transfer with upload confirmation.
 
-- Outbox остаётся компактным и актуальным.
-- Очистка не нарушает консистентность данных.
-- Легко комбинируется с любой реализацией хранения (PostgreSQL, Redis, InMemory).
-- Работает независимо от числа инстанций и не мешает основному потоку обработки сообщений.
+**Stages:**
+1. Receive metadata
+2. Validation
+3. Generate `upload URL` and token
+4. ACK to client
+5. Upload file to storage (MinIO etc.)
+6. Webhook from storage
+7. Create technical message
+8. Notify chat participants
+9. Finalization
 
----
-
-> 💡 Outbox — это буфер живой доставки,  
-> History — долговременное хранилище,  
-> Watermark + GarbageCollector — связка, которая удерживает систему в чистом и предсказуемом состоянии.
-
----
-
-## 🧭 8. Горизонтальное масштабирование и шардирование клиентов
-
-Мессенджер поддерживает **горизонтальное масштабирование** через распределение клиентов по инстанциям на уровне **API Gateway**.  
-Такое разделение устраняет гонки при работе с общим Outbox и делает доставку сообщений детерминированной.
-
----
-
-### 🔩 Основная идея
-
-- **API Gateway** принимает входящие WebSocket-подключения и балансирует их **по клиентскому идентификатору (ClientID)**.
-- Один и тот же `ClientID` **всегда направляется на одну и ту же инстанцию мессенджера**.
-- Для этого используется **детерминированная хэш-функция** (например, `CRC32(ClientID) mod N`, где `N` — количество инстанций).
-
-Таким образом, каждая инстанция мессенджера получает:
-- собственный набор активных клиентов;
-- локальный реестр сессий;
-- локальные водяные знаки (watermarks);
-- ответственность за доставку и очистку сообщений только своих клиентов.
+**Features:**
+- Two-phase logic (`initiation` → `completion`)
+- Asynchronous webhook cycle
+- Integration with S3-compatible storage
 
 ---
 
-### ⚙️ Работа с общим Outbox
+### ⚙️ 4. Technical System Messages
+**Purpose:** transferring control signals and notifications.
 
-- Все инстанции мессенджера используют **общую таблицу Outbox** (PostgreSQL).
-- При чтении из Outbox каждая инстанция **отбирает только сообщения**, принадлежащие её клиентам,  
-  по тому же правилу хэш-функции, которое использует API Gateway.
-- Это гарантирует, что одно сообщение не будет обработано сразу несколькими инстанциями.
-- Очистка Outbox (через GarbageCollector) также выполняется **только по клиентам данной инстанции**.
+**Examples:**
+- overload or credit limit warnings;
+- connection disruption notifications;
+- user state change events.
 
----
-
-### 🧱 Преимущества подхода
-
-- 🔒 **Отсутствие гонок:** каждая инстанция работает только со “своими” клиентами и их сообщениями.
-- ⚡ **Минимальные блокировки:** общая таблица Outbox не требует централизованного лизинга.
-- 📈 **Линейное масштабирование:** при добавлении новых инстанций нагрузка автоматически перераспределяется.
-- 🧩 **Совместимость:** архитектура не требует изменений в бизнес-логике пайплайна.
+**Stages:**
+1. Generate on server
+2. Send directly to client
+3. No ACK and no storage
 
 ---
 
-### 🧠 Итог
-
-> Масштабирование строится на принципе **«ClientID → Instance»**,  
-> что делает доставку сообщений детерминированной, а Outbox — безопасным и управляемым.  
-> Все клиенты обслуживаются своей инстанцией, а система остаётся согласованной при любом числе узлов.
-
----
-
-## 🛡️ 9. Идемпотентность и предотвращение повторной отправки сообщений
-
-Для защиты от повторной отправки сообщений реализован механизм **идемпотентности**. Он необходим, чтобы гарантировать, что одно и то же сообщение не будет отправлено повторно из-за:
-
-- Частого срабатывания скедулера, который вычитывает Outbox;
-- Задержки ACK от клиента;
-- Сетевой латентности и внутренних задержек обработки;
-- Параллельных потоков и гонок при повторной попытке отправки.
-
-Механизм позволяет безопасно игнорировать сообщения, уже отправленные и находящиеся в пределах времени жизни (TTL).
+### 🚀 5. Additional Types (for expansion)
+- **Presence** events (user status)
+- History synchronization
+- Command messages (edit, react, delete)
+- Monitoring and analytics events
 
 ---
 
-### 🔹 Расчёт TTL
+## 🧹 7. Outbox Cleanup Mechanism (Garbage Collector)
 
-Время жизни записи в буфере идемпотентности учитывает:
+To prevent the **Outbox** table from growing indefinitely and to maintain data relevance, the **watermark mechanism** is used, synchronized with the lifecycle of **WebSocket sessions**.
 
-1. **Латентность сети (`delta_network`)** — время, за которое ACK может прийти от клиента.
-2. **Буфер ACK (`delta_ack_flush`)** — задержка до пакетного удаления сообщений из Outbox.
-3. **Интервал скедулера (`S`)** — период вычетки новых сообщений из Outbox.
-4. **Внутренняя латентность (`delta_processing`)** — минимальные задержки на обработку внутри кластера.
+---
 
-**Формула TTL:**
+### 🔖 Core Idea
+
+Each message is written **simultaneously** to two storage systems:
+- **History** — long-term storage of all messages;
+- **Outbox** — temporary buffer for delivering messages to active clients.
+
+When a client **disconnects** from the WebSocket session (logout, timeout, disconnect), the server records a **watermark** — a mark of the last delivered message.  
+This mark is stored in the **local cache** (or Redis, if distribution is required) and is used by the garbage collector for cleaning the Outbox.
+
+---
+
+### ⚙️ How It Works
+
+1. **Creating Watermark**  
+   When the connection is terminated, the `SessionManager` component records the identifier of the last delivered message or a timestamp (`timestamp`) in the `WatermarkRegistry`.
+
+2. **Storing Watermark**  
+   The watermark is saved in local memory or Redis and lives until the client reconnects.  
+   It determines the lower boundary of messages that the client has already guaranteed to receive.
+
+3. **Outbox Cleanup**  
+   A periodic process (`GarbageCollector`), initiated by the `GarbageScheduler`, analyzes the watermarks of all clients.  
+   For each client, all messages in the Outbox with a position **less than or equal to** the corresponding watermark are deleted.
+
+4. **Safe Deletion**  
+   Since all messages have already been saved in History, cleaning the Outbox **does not result in data loss**.  
+   Upon reconnection, the client restores its context by requesting the history starting from the watermark.
+
+---
+
+### 🧩 Benefits
+
+- Outbox stays compact and relevant.
+- Cleanup does not break data consistency.
+- Easily combines with any storage implementation (PostgreSQL, Redis, InMemory).
+- Works independently of the number of instances and does not interfere with the main message processing thread.
+
+---
+
+> 💡 Outbox is a live delivery buffer,  
+> History is a long-term storage,  
+> Watermark + GarbageCollector is the mechanism that keeps the system clean and predictable.
+
+---
+
+## 🧭 8. Horizontal Scaling and Client Sharding
+
+The messenger supports **horizontal scaling** through client distribution across instances at the **API Gateway** level.  
+This separation eliminates races when working with a shared Outbox and makes message delivery deterministic.
+
+---
+
+### 🔩 Core Idea
+
+- The **API Gateway** accepts incoming WebSocket connections and balances them **by ClientID**.
+- The same `ClientID` is **always directed to the same messenger instance**.
+- This is achieved using a **deterministic hash function** (e.g., `CRC32(ClientID) mod N`, where `N` is the number of instances).
+
+Thus, each messenger instance receives:
+- its own set of active clients;
+- a local session registry;
+- local watermarks;
+- responsibility for delivery and cleanup of messages only for its own clients.
+
+---
+
+### ⚙️ Working with Shared Outbox
+
+- All messenger instances use a **shared Outbox table** (PostgreSQL).
+- When reading from the Outbox, each instance **selects only messages** belonging to its clients,  
+  according to the same hash function rule that the API Gateway uses.
+- This guarantees that a message will not be processed simultaneously by multiple instances.
+- Outbox cleanup (via the GarbageCollector) is also performed **only for clients of the given instance**.
+
+---
+
+### 🧱 Advantages of This Approach
+
+- 🔒 **No races:** Each instance works only with its “own” clients and their messages.
+- ⚡ **Minimal locks:** The shared Outbox table does not require centralized leasing.
+- 📈 **Linear scaling:** When adding new instances, the load is automatically redistributed.
+- 🧩 **Compatibility:** The architecture does not require changes to the pipeline business logic.
+
+---
+
+### 🧠 Conclusion
+
+> Scaling is built on the **"ClientID → Instance"** principle,  
+> which makes message delivery deterministic, and the Outbox — safe and manageable.  
+> All clients are served by their instance, and the system remains consistent regardless of the number of nodes.
+
+---
+
+## 🛡️ 9. Idempotency and Prevention of Message Resending
+
+To protect against the resending of messages, an **idempotency** mechanism is implemented. This is necessary to ensure that the same message will not be sent again due to:
+
+- Frequent triggering of the scheduler that reads the Outbox;
+- Delayed ACK from the client;
+- Network latency and internal processing delays;
+- Parallel threads and races when retrying the send.
+
+The mechanism safely ignores messages that have already been sent and are within their time-to-live (TTL).
+
+---
+
+### 🔹 TTL Calculation
+
+The lifetime of an idempotency record in the buffer considers:
+
+1. **Network Latency (`delta_network`)** — the time it takes for an ACK to arrive from the client.
+2. **ACK Buffer (`delta_ack_flush`)** — delay before messages are batch-deleted from the Outbox.
+3. **Scheduler Interval (`S`)** — period for reading new messages from the Outbox.
+4. **Internal Latency (`delta_processing`)** — minimal delays in processing within the cluster.
+
+**TTL Formula:**
 ```
 TTL = delta_network + delta_ack_flush - S + delta_processing
 ```
 
-**Пример расчёта (для типичной нагрузки):**
+**Example (for a typical load):**
 
-- `delta_network` = 2 сек
-- `delta_ack_flush` = 0.5 сек
-- `S` = 1 сек
-- `delta_processing` = 0.1 сек
+- `delta_network` = 2 sec
+- `delta_ack_flush` = 0.5 sec
+- `S` = 1 s
+- `delta_processing` = 0.1 sec
 
 ```
-TTL = 2 + 0.5 - 1 + 0.1 = 1.6 сек ≈ 2 секунды
+TTL = 2 + 0.5 - 1 + 0.1 = 1.6 sec ≈ 2 sec
 ```
-То есть сообщение будет оставаться в буфере идемпотентности около **2 секунд**, чтобы гарантировать защиту от повторной отправки с учётом сетевой латентности и циклов скедулера.
+So, the message will remain in the idempotency buffer for about **2 seconds** to guarantee protection against resending, taking into account network latency and scheduler cycles.
 
 ---
 
-### 🔹 Алгоритм работы
+### 🔹 Algorithm
 
-1. **При отправке сообщения**
-- Проверяется буфер идемпотентности по `messageId`.
-- Если запись существует и `currentTime - timestamp < TTL`, сообщение **не отправляется**.
-- Иначе сообщение отправляется, запись добавляется в буфер с текущим timestamp.
+1. **When sending a message**
+- The idempotency buffer is checked by `messageId`.
+- If the record exists and `currentTime - timestamp < TTL`, the message **is not sent**.
+- Otherwise, the message is sent, and the record is added to the buffer with the current timestamp.
 
-2. **Удаление из буфера**
-- Происходит **только по истечении TTL** или при переполнении буфера.
-- ACK от клиента не влияет на удаление.
-- Старые записи удаляются по принципу FIFO, чтобы всегда оставался ограниченный размер буфера.
+2. **Removal from the buffer**
+- Occurs **only after TTL expires** or when the buffer is full.
+- ACK from the client does not affect the removal.
+- Old records are removed based on FIFO principle to ensure a limited buffer size is always maintained.
 
-3. **Реализация буфера**
-- **Локальная память**: структура `ConcurrentInsertionOrderMap` обеспечивает O(1) доступ по `messageId` и FIFO-очистку.
-- **Redis**: может использоваться для распределённого кластера, TTL задаётся встроенными средствами Redis, но добавляет сетевую латентность.
-
----
-
-### 🔹 Преимущества
-
-- Защита от повторной отправки при гонках скедулера и сетевых задержках.
-- Минимизация нагрузки на WebSocket и внутренние сервисы.
-- Высокая производительность с O(1) доступом и FIFO-очисткой.
-- Гибкая реализация: локально в памяти или через Redis для распределённых систем.
+3. **Buffer implementation**
+- **Local memory**: The `ConcurrentInsertionOrderMap` structure provides O(1) access by `messageId` and FIFO clearing.
+- **Redis**: Can be used for a distributed cluster, TTL is set using Redis' built-in features, but it introduces network latency.
 
 ---
 
-## 🗄️ 10. Outbox на PostgreSQL и управление вычеткой
+### 🔹 Advantages
 
-Outbox, реализованный в реляционной базе данных, позволяет надежно управлять гарантированной доставкой сообщений, особенно когда одновременно нужно вставлять запись в Outbox и персистентное хранилище истории сообщений.
-
-- **Вставка**: можно выполнять **в одной транзакции**, чтобы одновременно обновлять Outbox и историю сообщений.
-- **Выборка сообщений для отправки**: рекомендуется использовать **`SELECT ... FOR UPDATE`** с установкой **leasing**.
-- Leasing — это временный маркер, который предотвращает повторное вычитывание того же сообщения другими инстанциями скедулера.
-- Время leasing должно быть кратно циклам скедулера, чтобы гарантировать, что каждая запись успевает быть отправлена хотя бы один раз, прежде чем станет доступной для следующей выборки.
-- **Периодичность скедулера**: выбирается исходя из нагрузки и объема батчей. Например, если скедулер вычитывает каждые 1 сек, leasing может быть установлен на 3 секунды (три цикла скедулера).
-
-**Преимущества реляционного Outbox:**
-
-- Простая гарантия атомарности с историей сообщений.
-- Поддержка нескольких инстанций без гонок.
-- Возможность тонкой настройки периодичности вычитки и leasing для оптимальной производительности.
+- Protection against resending in case of scheduler races and network delays.
+- Minimization of load on WebSocket and internal services.
+- High performance with O(1) access and FIFO clearing.
+- Flexible implementation: locally in memory or via Redis for distributed systems.
 
 ---
 
-> ✅ В совокупности: идемпотентность и Outbox на PostgreSQL обеспечивают гарантированную доставку сообщений, защиту от повторных отправок и контроль нагрузки при высокой частоте операций.
+## 🗄️ 10. Outbox in PostgreSQL and Fetching Management
+
+Outbox implemented in a relational database ensures reliable management of guaranteed message delivery, especially when simultaneously inserting a record in the Outbox and the persistent message history store.
+
+- **Insertion**: Can be performed **in a single transaction**, to simultaneously update the Outbox and message history.
+- **Fetching messages for sending**: It is recommended to use **`SELECT ... FOR UPDATE`** with **leasing**.
+- Leasing is a temporary marker that prevents the same message from being re-fetched by other instances of the scheduler.
+- The leasing time should be a multiple of the scheduler cycle to ensure that each record is sent at least once before becoming available for the next fetch.
+- **Scheduler periodicity**: Selected based on load and batch size. For example, if the scheduler fetches every 1 second, leasing can be set to 3 seconds (three scheduler cycles).
+
+**Advantages of relational Outbox:**
+
+- Simple guarantee of atomicity with message history.
+- Support for multiple instances without race conditions.
+- The ability to finely tune fetch periodicity and leasing for optimal performance.
+
 ---
 
-## 🧩 11. Структура папок проекта
+> ✅ In summary: Idempotency and Outbox in PostgreSQL ensure guaranteed message delivery, protection against resends, and load control at high operation frequencies.
 
-Проект организован по принципам Hexagonal Architecture (Ports & Adapters), что обеспечивает модульность, тестируемость и независимость бизнес-логики от инфраструктуры.
+---
+
+## 🧩 11. Project Folder Structure
+
+The project is organized based on Hexagonal Architecture (Ports & Adapters), ensuring modularity, testability, and independence of business logic from infrastructure.
 
 🧠 config/
 
-Конфигурационные классы приложения:
+Configuration classes of the application:
 
-- **KeycloakConfig** — настройка интеграции с Keycloak для аутентификации и авторизации.
-- **MessengerConfig** — конфигурация мессенджера: параметры батчей, таймаутов и прочих системных опций.
+- **KeycloakConfig** — Integration setup with Keycloak for authentication and authorization.
+- **MessengerConfig** — Messenger configuration: batch parameters, timeouts, and other system options.
 
 ⚙️ core/
 
-Основная бизнес-логика приложения. Здесь сосредоточены все ключевые процессы маршрутизации, регулирования и управления состоянием.
+Main business logic of the application. All key processes for routing, regulation, and state management are concentrated here.
 
-- **backpressure/** — управление потоками данных и ограничение нагрузки через реактивные publisher’ы и метрики.
-- **credits/** — управление кредитами сообщений (ограничение по каналам, фильтрация, ленивые вычисления).
-- **feedback/** — адаптивная обратная связь, сбор health-событий и динамическая регулировка частоты опросов.
-- **garbage/** — сбор и очистка устаревших данных, включая асинхронные коллекторы outbox.
-- **poller/** — периодический опрос outbox и публикация сообщений (pollers).
-- **presence/** — управление состоянием присутствия клиентов (координаторы, синхронизация).
-- **router/** — маршрутизация входящих и исходящих сообщений через pipeline стадий. Включает логирование и обработку ack/outbox/cache стадий.
-- **session/** — локальный реестр сессий и стратегии их очистки.
-- **watermark/** — генерация и хранение водяных меток для отслеживания прогресса обработки.
+- **backpressure/** — Data flow management and load limiting through reactive publishers and metrics.
+- **credits/** — Message credit management (limits by channels, filtering, lazy computations).
+- **feedback/** — Adaptive feedback, collection of health events, and dynamic adjustment of polling frequency.
+- **garbage/** — Collection and cleanup of outdated data, including asynchronous outbox collectors.
+- **poller/** — Periodic polling of the outbox and message publication (pollers).
+- **presence/** — Client presence state management (coordinators, synchronization).
+- **router/** — Routing of incoming and outgoing messages through pipeline stages. Includes logging and handling ack/outbox/cache stages.
+- **session/** — Local session registry and cleanup strategies.
+- **watermark/** — Generation and storage of watermarks for tracking processing progress.
 
 🏛️ domain/
 
-Доменные сущности и интерфейсы — независимы от фреймворков и инфраструктуры. Определяют, что делает система, а не как.
+Domain entities and interfaces — independent from frameworks and infrastructure. They define what the system does, not how.
 
-- **generator/** — генераторы идентификаторов сообщений (например, ULID).
-- **message/** — базовые модели сообщений: Message, MessageEnvelope, MessageType.
-- **session/** — доменная модель клиентской сессии (ClientSession, ClientData).
-- **stage/** — статусы этапов обработки сообщений.
-- **validator/** — интерфейсы и реализации для проверки корректности входящих данных.
-- **watermark/** — доменная модель водяных меток (позиция, отметка состояния).
+- **generator/** — Message ID generators (e.g., ULID).
+- **message/** — Basic message models: Message, MessageEnvelope, MessageType.
+- **session/** — Domain model of a client session (ClientSession, ClientData).
+- **stage/** — Statuses of message processing stages.
+- **validator/** — Interfaces and implementations for validating incoming data.
+- **watermark/** — Domain model of watermarks (position, state marker).
 
 🧰 infrastructure/
 
-Реализации портов (адаптеры), обеспечивающие связь core-уровня с внешними системами: БД, кэшем, WebSocket и REST.
+Port implementations (adapters) ensuring connection between the core layer and external systems: DB, cache, WebSocket, and REST.
 
-- **cache/** — реализации кэшей (in-memory, Redis): идемпотентность, presence и watermark.
-- **persistence/** — реализация хранения (in-memory и Postgres) для истории и outbox.
-- **rest/** — REST API для доступа к истории сообщений и состоянию присутствия, включая проверку токенов.
-- **websocket/** — управление WebSocket-подключениями: приём, доставка, трансформация, безопасность и нотификации.
+- **cache/** — Cache implementations (in-memory, Redis): idempotency, presence, and watermark.
+- **persistence/** — Storage implementation (in-memory and Postgres) for history and outbox.
+- **rest/** — REST API for accessing message history and presence state, including token validation.
+- **websocket/** — Management of WebSocket connections: reception, delivery, transformation, security, and notifications.
 
 🔌 ports/
 
-Контракты взаимодействия между core и infrastructure.  
-Здесь определяются интерфейсы, через которые ядро взаимодействует с внешним миром.
+Contracts for interaction between the core and infrastructure.  
+Interfaces are defined here through which the core interacts with the external world.
 
-- **channel/** — интерфейс канала доставки сообщений.
-- **history/** — интерфейс доступа к истории сообщений.
-- **idempotency/** — интерфейс менеджера идемпотентности.
-- **notifier/** — интерфейс системы уведомлений.
-- **outbox/** — интерфейс работы с outbox-таблицей.
-- **presence/** — интерфейс менеджера присутствия клиентов.
-- **session/** — интерфейс управления сессиями.
-- **watermark/** — интерфейс реестра водяных меток.
+- **channel/** — Message delivery channel interface.
+- **history/** — Message history access interface.
+- **idempotency/** — Idempotency manager interface.
+- **notifier/** — Notification system interface.
+- **outbox/** — Outbox table interface.
+- **presence/** — Client presence manager interface.
+- **session/** — Session management interface.
+- **watermark/** — Watermark registry interface.
 
 ⏰ scheduler/
 
-Планировщики задач, отвечающие за периодическое выполнение действий.
+Task schedulers responsible for periodically executing actions.
 
-- **RoutingScheduler** — опрос outbox и рассылка сообщений.
-- **GarbageScheduler** — периодическая очистка устаревших данных и кешей.
-- **TestScheduler** — утилитарный планировщик для отладки и тестов.
+- **RoutingScheduler** — Polling the outbox and distributing messages.
+- **GarbageScheduler** — Periodic cleanup of outdated data and caches.
+- **TestScheduler** — Utility scheduler for debugging and testing.
 
-## 🧭 Итоги и дальнейшее развитие
+## 🧭 Summary and Future Development
 
-Проект **реактивного мессенджера** находится в активной фазе разработки и постепенно переходит от архитектурного каркаса к полноценной реализации всех компонентов обмена сообщениями.
+The **reactive messenger** project is actively being developed and is gradually moving from the architectural framework to full implementation of all message exchange components.
 
-### 🎯 Ближайшие цели
-- **Расширение домена (DOMAIN):** добавление бизнес-логики маршрутизации, подтверждений, обработка ошибок и компенсаций.
-- **Повышение устойчивости под нагрузкой:** адаптивная регулировка потоков, приоритетизация задач, контроль задержек и балансировка между стадиями.
-- **Обработка неактивных клиентов:** внедрение мониторинга сессий, автоматическое завершение неактивных соединений и рассылка уведомлений.
-- **Развитие масштабирования:** улучшение распределения клиентов по инстанциям, стабильное горизонтальное шардирование через API Gateway.
-- **Расширение метрик и наблюдаемости:** интеграция новых метрик для latency, ошибок, буферов и реактивных стадий (экспорт в Prometheus).
-- **Многоуровневое тестирование:** проверка производительности и стабильности в разных окружениях (локально, кластер, Docker Compose).
-- **Интеграции с инфраструктурой:** завершение реализаций портов для PostgreSQL (Outbox, история) и Redis (кэш присутствия, watermark, идемпотентность).
+### 🎯 Immediate Goals
+- **Domain expansion (DOMAIN):** Adding routing business logic, acknowledgments, error handling, and compensation.
+- **Improving load resilience:** Adaptive flow control, task prioritization, latency control, and stage balancing.
+- **Handling inactive clients:** Introducing session monitoring, automatic termination of inactive connections, and notification dispatch.
+- **Scaling development:** Improving client distribution across instances, stable horizontal sharding via API Gateway.
+- **Expanding metrics and observability:** Integration of new metrics for latency, errors, buffers, and reactive stages (export to Prometheus).
+- **Multilevel testing:** Checking performance and stability in various environments (local, cluster, Docker Compose).
+- **Infrastructure integrations:** Completing port implementations for PostgreSQL (Outbox, history) and Redis (presence cache, watermark, idempotency).
 
-### 🌱 Стратегическое направление
-Проект продолжит развиваться как **универсальная реактивная платформа обмена сообщениями**,
-которая может использоваться как основа для:
-- корпоративных мессенджеров;
-- real-time систем уведомлений;
-- сервисов синхронизации состояния между клиентами.
+### 🌱 Strategic Direction
+The project will continue to evolve as a **universal reactive messaging platform**,
+which can be used as a foundation for:
+- Enterprise messengers;
+- Real-time notification systems;
+- Client state synchronization services.
 
-Цель — создать **открытый, надёжный и наблюдаемый реактивный messaging-модуль**,
-способный стабильно работать под высокой нагрузкой, масштабироваться горизонтально и легко интегрироваться в микросервисную архитектуру.
-
----
-
-##  🧩 PS. Продвинутая архитектура масштабируемого acknowledgment и очистки (Tetris Model)
-
-Данный вариант — расширенная архитектура буферизации, idempotency и Watermark-контроля,  
-основанная на аналогии с **игрой “Тетрис”** 🎮.  
-Каждое ACK-событие заполняет «ячейку» в потоке оффсетов, а агрегатор ACK-ов формирует «слои», которые можно безопасно удалить после того, как они полностью заполнены.
+The goal is to create an **open, reliable, and observable reactive messaging module**,
+capable of operating stably under high load, scaling horizontally, and easily integrating into microservice architectures.
 
 ---
 
-### ⚙️ Поток обработки сообщений
+## 🧩 PS. Advanced Scalable Acknowledgment and Cleanup Architecture (Tetris Model)
 
-1. **PostgreSQL** — запись сообщения в историю (и при необходимости в outbox).
-2. **Debezium → Kafka** — транзакционные изменения транслируются в `topic messages`, партиционированный по `clientId` или `clientShard`.
-3. **Messenger Consumer** читает Kafka, доставляет сообщение по WebSocket клиенту.
-4. **Клиент отправляет ACK**, который сохраняется в Redis или публикуется в Kafka (`topic acks`).
-5. **ACK-агрегатор** (Kafka Streams / отдельный сервис) собирает ACK-события и *склеивает интервалы* (аналогия с «тетрис-слоями»), формируя компактные диапазоны per-client.
-6. По агрегированным диапазонам и watermarks вычисляется **`global_safe_offset`** — минимальная правая граница всех клиентов.
-7. Этот `global_safe_offset` служит логической границей для **очистки outbox / Kafka / Postgres**.
+This option is an advanced architecture for buffering, idempotency, and watermark control,  
+based on the analogy with the **“Tetris”** game 🎮.  
+Each ACK event fills a “cell” in the offset stream, and the ACK aggregator forms “layers” that can be safely deleted once they are completely filled.
 
 ---
 
-### 🔁 Повторное чтение и доставка
+### ⚙️ Message Processing Flow
 
-Messenger-consumer периодически выполняет «replay»:
-- возвращается к `logicalBasePosition` (минимальной точке непрочитанного диапазона);
-- перечитывает Kafka и фильтрует уже подтверждённые сообщения на основе агрегированных диапазонов;
-- повторно доставляет только недоставленные сообщения.
-
-Это гарантирует **идемпотентную доставку** и устойчивость при сбоях, перегрузках или временных сетевых проблемах.
+1. **PostgreSQL** — record the message in history (and, if needed, in the outbox).
+2. **Debezium → Kafka** — transactional changes are streamed to the `topic messages`, partitioned by `clientId` or `clientShard`.
+3. **Messenger Consumer** reads from Kafka and delivers the message to the WebSocket client.
+4. **The client sends an ACK**, which is saved in Redis or published to Kafka (`topic acks`).
+5. **ACK Aggregator** (Kafka Streams / separate service) collects ACK events and *merges intervals* (like “Tetris layers”), forming compact ranges per-client.
+6. Based on the aggregated ranges and watermarks, the **`global_safe_offset`** is calculated — the minimum right boundary across all clients.
+7. This `global_safe_offset` serves as the logical boundary for **cleaning up the outbox / Kafka / Postgres**.
 
 ---
 
-### 🧱 Варианты хранения состояния
+### 🔁 Replay and Delivery
 
-#### 🅰️ Вариант A — Redis (runtime) + Postgres (backup)
-**Рекомендованный подход.**
+The Messenger-consumer periodically performs a “replay”:
+- It returns to the `logicalBasePosition` (the minimum point of the unread range);
+- It re-reads Kafka and filters out already acknowledged messages based on the aggregated ranges;
+- It re-delivers only undelivered messages.
+
+This guarantees **idempotent delivery** and resilience in case of failures, overloads, or temporary network issues.
+
+---
+
+### 🧱 State Storage Options
+
+#### 🅰️ Option A — Redis (runtime) + Postgres (backup)
+**Recommended approach.**
 
 Redis:
-- быстрый in-memory store для ACK-диапазонов, watermarks и `global_safe_offset`;
-- ZSET для хранения `right_bound` каждого клиента;
-- Lua-скрипты для атомарного merge интервалов.
+- Fast in-memory store for ACK ranges, watermarks, and `global_safe_offset`;
+- ZSET to store `right_bound` of each client;
+- Lua scripts for atomic interval merge.
 
 Postgres:
-- долговременное хранилище snapshot-ов (периодический persist для восстановления после сбоя).
+- Long-term snapshot storage (periodic persist for recovery after failure).
 
-**Типовые ключи Redis:**
+**Typical Redis Keys:**
 
 ```
-client:{id}:ranges → JSON/CBOR список интервалов [[s1,e1],[s2,e2],...]
+client:{id}:ranges → JSON/CBOR list of intervals [[s1,e1],[s2,e2],...]
 clients:right_bounds → ZSET (score = right_bound, member = clientId)
-client:{id}:watermark_ts → timestamp последней активности
-global:safe_offset → текущий глобальный минимум
-idempotency:{msgId} → TTL entry для защиты от дублей
+client:{id}:watermark_ts → timestamp of the last activity
+global:safe_offset → current global minimum
+idempotency:{msgId} → TTL entry for duplicate protection
 ```
 
 
-**Основные операции:**
-- При ACK:
-   1. Считать текущие интервалы `client:{id}:ranges`
-   2. Объединить с новым оффсетом (merge)
-   3. Обновить `right_bound` и ZSET
-   4. При необходимости пересчитать `global:safe_offset`
-   5. Асинхронно зафиксировать snapshot в Postgres
+**Key Operations:**
+- On ACK:
+   1. Read current intervals `client:{id}:ranges`
+   2. Merge with new offset (merge)
+   3. Update `right_bound` and ZSET
+   4. Recalculate `global:safe_offset` if necessary
+   5. Asynchronously persist snapshot in Postgres
 
-**Преимущества:**
-- Мгновенная фильтрация при отправке (`O(1)` по диапазонам)
-- Быстрая агрегация глобального минимума (`ZRANGE 0 0`)
-- Минимальная задержка при доставке (µs–ms)
+**Advantages:**
+- Instant filtering during send (`O(1)` on ranges)
+- Fast aggregation of global minimum (`ZRANGE 0 0`)
+- Minimal delivery delay (µs–ms)
 
-**Недостатки:**
-- Redis требует кластеризации при большом количестве клиентов
-- Нужен механизм периодических snapshot-ов для восстановления состояния
-
----
-
-#### 🅱️ Вариант B — Kafka Streams / ksqlDB + Compacted Topics
-**Альтернативный вариант без Redis.**
-
-- `topic acks` → Kafka Streams App → агрегирует ACK по `clientId`
-- результат хранится в compacted topic `ack_ranges`
-- отдельный поток вычисляет `global_safe_offset` и сохраняет в compacted topic `global_offset`
-
-**Преимущества:**
-- высокая отказоустойчивость и горизонтальное масштабирование;
-- встроенное durable-хранение без внешней БД;
-- автоматическая репликация state store.
-
-**Недостатки:**
-- требует Kafka Streams инфраструктуры;
-- немного выше latency (но не критично для ACK-агрегации).
+**Disadvantages:**
+- Redis requires clustering for a large number of clients
+- A mechanism for periodic snapshots is required for state recovery
 
 ---
 
-### 🧮 Алгоритм merge (Tetris-склейка)
+#### 🅱️ Option B — Kafka Streams / ksqlDB + Compacted Topics
+**Alternative option without Redis.**
 
-Каждый ACK — это оффсет `o`.
+- `topic acks` → Kafka Streams App → aggregates ACK by `clientId`
+- Result is stored in compacted topic `ack_ranges`
+- A separate stream calculates `global_safe_offset` and saves it in the compacted topic `global_offset`
 
-Храним интервалы `[ [s1,e1], [s2,e2], ... ]` (непересекающиеся и отсортированные).
+**Advantages:**
+- High fault tolerance and horizontal scalability;
+- Built-in durable storage without an external DB;
+- Automatic replication of the state store.
 
-При вставке нового `o`:
-1. Находим интервалы, которые примыкают слева/справа.
-2. Объединяем их (возможно несколько).
-3. Обновляем структуру и правую границу.
-
-**Варианты реализации:**
-- В Java-сервисе (Quarkus) — просто и быстро.
-- В Redis — через Lua-скрипт для атомарности (merge + HSET в одной транзакции).
+**Disadvantages:**
+- Requires Kafka Streams infrastructure;
+- Slightly higher latency (but not critical for ACK aggregation).
 
 ---
 
-### 🌍 Вычисление `global_safe_offset`
+### 🧮 Merge Algorithm (Tetris Merging)
+
+Each ACK is an offset `o`.
+
+We store intervals `[ [s1,e1], [s2,e2], ... ]` (non-overlapping and sorted).
+
+When inserting a new `o`:
+1. Find the intervals that are adjacent on the left/right.
+2. Merge them (possibly multiple intervals).
+3. Update the structure and the right boundary.
+
+**Implementation Options:**
+- In a Java service (Quarkus) — simple and fast.
+- In Redis — using Lua script for atomicity (merge + HSET in a single transaction).
+
+---
+
+### 🌍 Calculating `global_safe_offset`
 
 ```text
-1. ZSET clients:right_bounds — хранит right_bound всех клиентов.
+1. ZSET clients:right_bounds — stores the right_bound of all clients.
 2. global_safe_offset = ZRANGE clients:right_bounds 0 0 WITHSCORES.
-3. При обновлении right_bound у клиента → пересчитать global_safe_offset.
-4. Для неактивных клиентов можно использовать leaveStamp → удалить из ZSET.
+3. When updating the right_bound of a client → recalculate global_safe_offset.
+4. For inactive clients, use leaveStamp → remove from ZSET.
 ```
+
+## 📖 PSS. Terms and Explanations
+
+| Term                               | Definition / Explanation                                                                                   |
+|------------------------------------|------------------------------------------------------------------------------------------------------------|
+| **Reactor / Reactive model**       | An event-driven processing model where components react to data asynchronously and non-blocking.            |
+| **Pipeline (conveyor)**            | A sequence of stages for message processing: validation → write → delivery → ACK.                           |
+| **Mutiny**                         | A reactive library for Quarkus that provides declarative asynchronous data streams.                         |
+| **Hexagonal Architecture (Ports and Adapters)** | An architecture that separates business logic (domain) and infrastructure for independence and testability. |
+| **Outbox**                         | A buffer where messages are saved before sending — guarantees delivery.                                     |
+| **History**                        | The main long-term storage for messages (as opposed to temporary Outbox).                                   |
+| **Watermark**                      | A timestamp marking the disconnection (session) of a client. Used during Outbox cleanup in conjunction with ACK. |
+| **Garbage Collector (GC)**         | A process that removes outdated records from the Outbox based on the Watermark.                             |
+| **ACK (Acknowledgment)**           | Confirmation from the client of the message delivery.                                                       |
+| **Backpressure**                   | A mechanism for limiting the incoming data flow to avoid overloading the system.                            |
+| **Credits system**                 | A counter for message limits per user to implement client-side backpressure.                               |
+| **Idempotency**                    | A guarantee that re-sending the same message will not alter the result.                                     |
+| **Leasing**                        | A mechanism for temporarily locking a record when reading from the Outbox to avoid duplicates.              |
+| **Presence**                       | The "online/offline" state of the user, cached in Redis.                                                    |
+| **Session Manager**                | A component that manages the lifecycle of client WebSocket sessions.                                        |
+| **Redis**                          | A fast in-memory DB for caching state, watermarks, idempotency, and presence.                               |
+| **Prometheus**                     | A monitoring system where the messenger exports performance metrics.                                        |
+| **Quarkus**                        | A Java framework for reactive and native applications with fast startup and low resource consumption.        |
+| **Tetris Model**                   | An architectural metaphor for combining ACK ranges, where filled “layers” can be safely cleaned up.         |
+| **CRC32(ClientID) mod N**          | A method for deterministic client distribution across instances when scaling.                               |
+
 ---
 
-## 📖 PSS. Термины и объяснения
+> 💡 *This section can be expanded as new components and terms are added to the system.*
 
-| Термин | Расшифровка / Объяснение                                                                               |
-|--------|--------------------------------------------------------------------------------------------------------|
-| **Reactor / Reactive model** | Модель обработки событий, где компоненты реагируют на данные асинхронно и неблокирующе.                |
-| **Pipeline (конвейер)** | Последовательность стадий обработки сообщений: валидация → запись → доставка → ACK.                    |
-| **Mutiny** | Реактивная библиотека Quarkus, обеспечивающая декларативные асинхронные потоки данных.                 |
-| **Hexagonal Architecture (Порты и адаптеры)** | Архитектура, разделяющая бизнес-логику (домен) и инфраструктуру для независимости и тестируемости.     |
-| **Outbox** | Буфер, куда сообщения сохраняются перед отправкой — гарантирует доставку.                              |
-| **History** | Основное долговременное хранилище сообщений (в отличие от временного Outbox).                          |
-| **Watermark** | Маркер времени разрыва соединения (сессии) клиента. Используется при очистке Outbox совместно с ACK.   |
-| **Garbage Collector (GC)** | Процесс, удаляющий устаревшие записи из Outbox на основе Watermark.                                    |
-| **ACK (Acknowledgment)** | Подтверждение от клиента о доставке сообщения.                                                         |
-| **Backpressure** | Механизм ограничения входящего потока данных, чтобы не перегрузить систему.                            |
-| **Credits system (Кредиты)** | Счётчик лимитов сообщений на пользователя для реализации клиентского backpressure.                     |
-| **Idempotency (Идемпотентность)** | Гарантия, что повторная отправка одного и того же сообщения не изменит результат.                      |
-| **Leasing (лизинг)** | Механизм временной блокировки записи при вычитке из Outbox, чтобы избежать дублей.                     |
-| **Presence** | Состояние "онлайн/оффлайн" пользователя, кэшируемое в Redis.                                           |
-| **Session Manager** | Компонент, управляющий жизненным циклом клиентских WebSocket-сессий.                                   |
-| **Redis** | Быстрая in-memory БД для кэширования состояния, водяных знаков, идемпотентности и presence.            |
-| **Prometheus** | Система мониторинга, куда мессенджер экспортирует метрики производительности.                          |
-| **Quarkus** | Java-фреймворк для реактивных и нативных приложений с быстрым стартом и низким потреблением ресурсов.  |
-| **Tetris Model** | Архитектурная метафора для объединения ACK-диапазонов, где заполненные “слои” можно безопасно очищать. |
-| **CRC32(ClientID) mod N** | Метод детерминированного распределения клиентов по инстанциям при масштабировании.                     |
-
----
-
-> 💡 *Этот раздел можно развивать по мере добавления новых компонентов и терминов в систему.*
-
-
-> ⚙️ _Мы строим фундамент реактивной коммуникационной платформы,
-> где производительность, масштабируемость и архитектурная чистота — не компромисс, а стандарт._
+> ⚙️ _We are building the foundation of a reactive communication platform,  
+> where performance, scalability, and architectural purity are not a compromise, but the standard._
