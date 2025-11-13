@@ -7,6 +7,6 @@ import java.util.List;
 
 public interface PresenceManager {
     Uni<Void> addClient(ClientData user);
-    Uni<Void> removeClient(String userId);
+    Uni<Void> removeClient(String userId, long timestamp);
     Uni<List<ClientData>> allPresent();
 }

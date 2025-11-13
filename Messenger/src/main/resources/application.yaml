@@ -16,6 +16,10 @@
       reactive:
         url: postgres://postgres/hormigasdb
 
+    redis:
+      hosts: redis://redis:6379
+      timeout: 5s
+
     hibernate-orm:
       database:
         generation: update
@@ -66,6 +70,9 @@
       collector:
         max-watermarks: 100
         every-s: "10s"
+      storage:
+        service: redis
+
 
 
 

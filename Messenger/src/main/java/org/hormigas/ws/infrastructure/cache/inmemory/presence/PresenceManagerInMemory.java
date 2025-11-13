@@ -1,5 +1,6 @@
 package org.hormigas.ws.infrastructure.cache.inmemory.presence;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import org.hormigas.ws.domain.session.ClientData;
@@ -20,13 +21,13 @@ import java.util.concurrent.ConcurrentHashMap;
  *    because the new registration will be overwritten and removed inadvertently.
  *
  * 2. To make this robust and future-proof (for Redis or other distributed storage),
- *    we should track a version or registration timestamp in the Member object.
+ *    we should track a version or registration connectedAt in the Member object.
  *
  *    Example approach:
  *      - Add a `registrationTimestamp` (or version) to Member.
- *      - When adding a client, record the timestamp.
- *      - When removing a client, provide the timestamp of the registration we intend to remove.
- *      - Only remove the client if the current stored timestamp <= provided timestamp.
+ *      - When adding a client, record the connectedAt.
+ *      - When removing a client, provide the connectedAt of the registration we intend to remove.
+ *      - Only remove the client if the current stored connectedAt <= provided connectedAt.
  *
  * 3. Benefits of this approach:
  *      - Prevents accidental removal of a client that reconnected concurrently.
@@ -37,7 +38,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *      - addClient(Member user) -> record user.registrationTimestamp = System.currentTimeMillis()
  *        (or a logical version).
  *      - removeClient(String userId, long registrationTimestamp) -> use computeIfPresent
- *        to conditionally remove only if the timestamp matches.
+ *        to conditionally remove only if the connectedAt matches.
  *      - all other methods remain mostly unchanged but should respect timestamps if needed.
  *
  * This ensures presence management is thread-safe and consistent, especially in reactive
@@ -45,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 @ApplicationScoped
+@IfBuildProperty(name = "processing.messages.storage.service", stringValue = "memory")
 public class PresenceManagerInMemory implements PresenceManager {
 
     private final Map<String, ClientData> presences = new ConcurrentHashMap<>();
@@ -55,7 +57,7 @@ public class PresenceManagerInMemory implements PresenceManager {
     }
 
     @Override
-    public Uni<Void> removeClient(String userId) {
+    public Uni<Void> removeClient(String userId, long timestamp) {
         return Uni.createFrom().item(presences.remove(userId)).replaceWithVoid();
     }
 

@@ -26,7 +26,7 @@ public class ClientCoordinator implements PresenceCoordinator {
 
     @Override
     public Uni<Void> removePresence(String userId, long timestamp) {
-        return presenceManager.removeClient(userId)
+        return presenceManager.removeClient(userId, timestamp)
                 .call(() -> leaveStamp.setLeaveStamp(userId, timestamp))
                 .invoke(() -> log.debug("Client {} removed from presence", userId))
                 .onFailure().invoke(failure -> log.error("Failed to remove client {} from presence", userId, failure));

@@ -11,6 +11,7 @@ public interface MessengerConfig {
     Channel channel();
     Credits credits();
     Collector collector();
+    Storage storage();
 
     interface Inbound {
         int queueSize();
@@ -43,5 +44,9 @@ public interface MessengerConfig {
     interface Collector {
         int maxWatermarks();
         String everyS();
+    }
+
+    interface Storage {
+        String service();
     }
 }

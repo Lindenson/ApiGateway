@@ -1,5 +1,6 @@
 package org.hormigas.ws.infrastructure.cache.inmemory.idempotency;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -14,6 +15,7 @@ import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @Slf4j
 @ApplicationScoped
+@IfBuildProperty(name = "processing.messages.storage.service", stringValue = "memory")
 public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
 
     private final int MAX_IDEM_SIZE = 5000;

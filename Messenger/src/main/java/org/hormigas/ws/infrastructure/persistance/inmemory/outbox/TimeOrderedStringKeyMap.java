@@ -23,7 +23,7 @@ public class TimeOrderedStringKeyMap<V> {
     private final ReentrantLock lock = new ReentrantLock();
 
     /**
-     * Функциональный интерфейс для получения timestamp из значения
+     * Функциональный интерфейс для получения connectedAt из значения
      */
     @FunctionalInterface
     public interface TimestampExtractor<V> {
@@ -37,7 +37,7 @@ public class TimeOrderedStringKeyMap<V> {
     }
 
     /**
-     * Внутренний ключ — timestamp + id (уникальная комбинация, сортируется по возрастанию времени).
+     * Внутренний ключ — connectedAt + id (уникальная комбинация, сортируется по возрастанию времени).
      */
     private static final class EntryKey implements Comparable<EntryKey> {
         final long ts;
@@ -147,7 +147,7 @@ public class TimeOrderedStringKeyMap<V> {
     }
 
     /**
-     * Первые N сообщений (по возрастанию timestamp).
+     * Первые N сообщений (по возрастанию connectedAt).
      * Возвращает список от старых к новым (FIFO).
      */
     public List<V> peekFirstN(int n) {
