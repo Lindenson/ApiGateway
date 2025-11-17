@@ -1,12 +1,11 @@
-
-
 package org.hormigas.ws.infrastructure.cache.redis;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hormigas.ws.ports.tetris.Tetris;
+import org.hormigas.ws.ports.tetris.TetrisMarker;
 
 import java.util.List;
 import java.util.UUID;
@@ -15,30 +14,33 @@ import java.util.UUID;
  * Redis-backed implementation of Tetris pattern.
  * <p>
  * Keys used (for recipient UUID = {id}):
- * - tetris:recipient:{id}                    -> HASH with fields: highestSentId, nextExpectedId, disconnectCutoffId
- * - tetris:recipient:{id}:acks               -> ZSET of acked message ids (score = id, member = id)
- * - tetris:message:id:counter                -> STRING counter for generating monotonic message ids
+ * - tetris:recipient:{id}    -> HASH with fields: highestSentId, nextExpectedId, disconnectCutoffId
+ * - tetris:recipient:{id}:acks-> ZSET of acked message ids (score = id, member = id)
+ * - tetris:message:id:counter-> STRING counter for generating monotonic message ids
  */
 @ApplicationScoped
-public class RedisTetris implements Tetris {
+@IfBuildProperty(name = "processing.messages.storage.service", stringValue = "redis")
+public class RedisTetrisMarker implements TetrisMarker {
 
+    private final static int BATCH_SIZE = 1000;
 
     @Inject
     RedisAPI lowLevelClient;
-
 
     private static final String RECIPIENT_KEY_PREFIX = "tetris:recipient:"; // + {uuid}
     private static final String ACKS_SUFFIX = ":acks";
 
 
-    /**
-     * Register that a message with given ID was sent to a recipient.
-     * Ensures highestSentId and nextExpectedId are initialized atomically.
-     */
+    // ----------------------------
+    // onSent
+    // ----------------------------
+    @Override
     public Uni<Void> onSent(UUID recipientId, long messageId) {
         final String key = recipientKey(recipientId);
 
         final String SCRIPT = """
+                -- ARGV[1] = key
+                -- ARGV[2] = msgId
                 local key = ARGV[1]
                 local msgId = tonumber(ARGV[2])
                 local highest = tonumber(redis.call('HGET', key, 'highestSentId') or '0')
@@ -57,28 +59,22 @@ public class RedisTetris implements Tetris {
                 """;
 
         List<String> args = List.of(SCRIPT, "0", key, String.valueOf(messageId));
-
-        return lowLevelClient
-                .eval(args)
+        return lowLevelClient.eval(args)
                 .replaceWithVoid();
     }
 
-    /**
-     * Register ack from recipient.
-     * <p>
-     * Behavior:
-     * - if nextExpectedId == -1 (no sends recorded) -> ignore ack
-     * - if ack < nextExpectedId -> ignore (already covered)
-     * - otherwise: ZADD to ack set, and advance nextExpectedId while possible:
-     * * while nextExpectedId <= disconnectCutoffId: remove ack entry (if any) and increment
-     * * else if ZSCORE(ackSet, nextExpectedId) exists: ZREM + increment
-     * * else break
-     */
+    // ----------------------------
+    // onAck
+    // ----------------------------
+    @Override
     public Uni<Void> onAck(UUID recipientId, long messageId) {
         final String recipientKey = recipientKey(recipientId);
         final String ackKey = recipientKey + ACKS_SUFFIX;
 
         final String SCRIPT = """
+                -- ARGV[1] = key
+                -- ARGV[2] = ackKey
+                -- ARGV[3] = msgId
                 local key = ARGV[1]
                 local ackKey = ARGV[2]
                 local msgId = tonumber(ARGV[3])
@@ -124,15 +120,17 @@ public class RedisTetris implements Tetris {
         return lowLevelClient.eval(args).replaceWithVoid();
     }
 
-    /**
-     * Mark recipient disconnected -> set disconnectCutoffId = highestSentId (if higher than current cutoff)
-     * and advance nextExpectedId accordingly (cleanup acks <= cutoff).
-     */
+    // ----------------------------
+    // onDisconnect
+    // ----------------------------
+    @Override
     public Uni<Void> onDisconnect(UUID recipientId) {
         final String recipientKey = recipientKey(recipientId);
         final String ackKey = recipientKey + ACKS_SUFFIX;
 
         final String SCRIPT = """
+                -- ARGV[1] = key
+                -- ARGV[2] = ackKey
                 local key = ARGV[1]
                 local ackKey = ARGV[2]
                 
@@ -164,15 +162,20 @@ public class RedisTetris implements Tetris {
         return lowLevelClient.eval(args).replaceWithVoid();
     }
 
+    // ----------------------------
+    // computeGlobalSafeDeleteId
+    // ----------------------------
+
     /**
-     * Compute global safe delete ID = min(nextExpectedId - 1) across provided recipientIds.
-     * If a recipient has nextExpectedId == -1 (no messages ever sent to them), that recipient
-     * does not limit GC (ignored).
-     * If no recipient provides a limit, returns 0.
+     * Scan pattern tetris:recipient:* and compute min(nextExpectedId - 1).
+     * Returns 0 if none found.
      */
+    @Override
     public Uni<Long> computeGlobalSafeDeleteId() {
 
-        final String SCRIPT = """          
+        final String SCRIPT = """
+                -- ARGV[1] = pattern
+                -- ARGV[2] = count (optional)
                 local pattern = ARGV[1]
                 local count = tonumber(ARGV[2]) or 100
                 local cursor = "0"
@@ -182,7 +185,8 @@ public class RedisTetris implements Tetris {
                     local res = redis.call("SCAN", cursor, "MATCH", pattern, "COUNT", count)
                     cursor = res[1]
                     local keys = res[2]
-                    for i, key in ipairs(keys) do
+                    for i = 1, #keys do
+                        local key = keys[i]
                         if redis.call("TYPE", key).ok == "hash" then
                             local nextExpected = tonumber(redis.call("HGET", key, "nextExpectedId") or "-1")
                             if nextExpected ~= -1 then
@@ -202,23 +206,26 @@ public class RedisTetris implements Tetris {
                 end
                 """;
 
-        List<String> args = List.of(SCRIPT, "0", "tetris:recipient:*", "100");
-
+        List<String> args = List.of(SCRIPT, "0", "tetris:recipient:*", String.valueOf(BATCH_SIZE));
         return lowLevelClient.eval(args)
-                .map(result -> {
-                    if (result == null) return 0L;
+                .map(resp -> {
+                    if (resp == null) return 0L;
                     try {
-                        return result.toLong();
-                    } catch (NumberFormatException e) {
-                        return 0L;
+                        return resp.toLong();
+                    } catch (Exception e) {
+                        try {
+                            return Long.parseLong(resp.toString());
+                        } catch (Exception ex) {
+                            return 0L;
+                        }
                     }
                 });
     }
 
-
-
+    // ----------------------------
+    // helpers
+    // ----------------------------
     private String recipientKey(UUID id) {
         return RECIPIENT_KEY_PREFIX + id;
     }
 }
-

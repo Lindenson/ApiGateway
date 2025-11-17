@@ -1,7 +1,7 @@
 package org.hormigas.ws.infrastructure.cache.inmemory.tetris;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.ports.tetris.Tetris;
+import org.hormigas.ws.ports.tetris.TetrisMarker;
 
 import java.util.NavigableSet;
 import java.util.TreeSet;
@@ -18,7 +18,7 @@ import java.util.UUID;
  * Messages acknowledged out-of-order are tracked in a TreeSet. Disconnected recipients advance the pointer to
  * mark all messages sent before disconnect as safe to delete.
  */
-public class TetrisService implements Tetris {
+public class TetrisMarkerService implements TetrisMarker {
 
     /**
      * Mapping from recipient UUID to their current state.

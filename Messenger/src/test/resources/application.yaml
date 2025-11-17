@@ -36,5 +36,5 @@
       idempotent:
         ttl-seconds: 3
       storage:
-        service: memory
+        service: redis
 
