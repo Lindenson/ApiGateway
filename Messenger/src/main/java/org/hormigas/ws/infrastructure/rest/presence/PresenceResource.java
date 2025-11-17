@@ -6,7 +6,7 @@ import jakarta.ws.rs.GET;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.presence.OnlineClient;
 import org.hormigas.ws.ports.presence.PresenceManager;
 
 import java.util.List;
@@ -19,7 +19,7 @@ public class PresenceResource {
     PresenceManager presenceManager;
 
     @GET
-    public Uni<List<ClientData>> getPresence() {
-        return presenceManager.allPresent();
+    public Uni<List<OnlineClient>> getPresence() {
+        return presenceManager.getAll();
     }
 }

@@ -27,7 +27,7 @@ public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
 
 
     @Override
-    public Uni<StageStatus> addMessage(@Nullable Message message) {
+    public Uni<StageStatus> add(@Nullable Message message) {
         if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
 
         log.debug("Adding message {}", message);
@@ -36,7 +36,7 @@ public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
     }
 
     @Override
-    public Uni<StageStatus> removeMessage(@Nullable Message message) {
+    public Uni<StageStatus> remove(@Nullable Message message) {
         if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
 
         log.debug("Removing message {}", message);
@@ -45,7 +45,7 @@ public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
     }
 
     @Override
-    public Uni<Boolean> inProgress(@Nullable Message message) {
+    public Uni<Boolean> isInProgress(@Nullable Message message) {
         if (message == null || message.getMessageId() == null) {
             log.error("Message is null or empty {}", message);
             return Uni.createFrom().item(Boolean.FALSE);

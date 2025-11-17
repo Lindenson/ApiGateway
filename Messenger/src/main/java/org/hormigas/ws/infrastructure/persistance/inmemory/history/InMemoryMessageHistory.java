@@ -24,19 +24,19 @@ public class InMemoryMessageHistory implements History<Message> {
     private final ConcurrentHashMap<String, Deque<MessageRecord>> sentStorage = new ConcurrentHashMap<>();
 
     @Override
-    public Uni<List<Message>> getMessagesForClient(String clientId) {
+    public Uni<List<Message>> getByRecipientId(String clientId) {
         return Uni.createFrom().item(getMessagesFromDeque(receivedStorage.get(clientId)));
     }
 
     @Override
-    public Uni<List<Message>> getMessagesFromClient(String clientId) {
+    public Uni<List<Message>> getBySenderId(String clientId) {
         return Uni.createFrom().item(getMessagesFromDeque(sentStorage.get(clientId)));
     }
 
     @Override
-    public Uni<List<Message>> getAllMessagesByClient(String clientId) {
-        Uni<List<Message>> received = getMessagesForClient(clientId);
-        Uni<List<Message>> sent = getMessagesFromClient(clientId);
+    public Uni<List<Message>> getAllBySenderId(String clientId) {
+        Uni<List<Message>> received = getByRecipientId(clientId);
+        Uni<List<Message>> sent = getBySenderId(clientId);
 
         return Uni.combine().all().unis(received, sent)
                 .asTuple()
@@ -57,7 +57,7 @@ public class InMemoryMessageHistory implements History<Message> {
 
 
     @Override
-    public void addMessage(String clientId, Message message) {
+    public void addBySenderId(String clientId, Message message) {
         if (message.getSenderId().equals("server")) return;
 
         receivedStorage.computeIfAbsent(clientId, k -> new ConcurrentLinkedDeque<>());

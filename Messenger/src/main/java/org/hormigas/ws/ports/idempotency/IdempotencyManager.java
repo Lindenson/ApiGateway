@@ -4,7 +4,7 @@ import io.smallrye.mutiny.Uni;
 import org.hormigas.ws.domain.stage.StageStatus;
 
 public interface IdempotencyManager<T> {
-    Uni<StageStatus> addMessage(T id);
-    Uni<StageStatus> removeMessage(T id);
-    Uni<Boolean> inProgress(T id);
+    Uni<StageStatus> add(T id);
+    Uni<StageStatus> remove(T id);
+    Uni<Boolean> isInProgress(T id);
 }

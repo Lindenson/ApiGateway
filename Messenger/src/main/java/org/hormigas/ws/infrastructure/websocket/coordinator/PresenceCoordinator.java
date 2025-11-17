@@ -1,35 +1,36 @@
-package org.hormigas.ws.infrastructure.websocket.notifier;
+package org.hormigas.ws.infrastructure.websocket.coordinator;
 
 import io.quarkus.websockets.next.WebSocketConnection;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.core.presence.coordinator.AsyncClientCoordinator;
-import org.hormigas.ws.ports.notifier.Notifier;
+import org.hormigas.ws.core.presence.AsyncPresence;
+import org.hormigas.ws.domain.session.ClientSession;
+import org.hormigas.ws.ports.notifier.Coordinator;
 import org.hormigas.ws.ports.session.SessionRegistry;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 
 import java.util.Optional;
 
 
 @Slf4j
 @ApplicationScoped
-public class PresenceNotifier implements Notifier<WebSocketConnection> {
+public class PresenceCoordinator implements Coordinator<WebSocketConnection> {
 
     @Inject
     PresencePublisher publisher;
 
     @Inject
-    AsyncClientCoordinator updater;
+    AsyncPresence presence;
 
     @Inject
     SessionRegistry<WebSocketConnection> registry;
 
     @Override
-    public void notifyJoin(ClientData newClient, WebSocketConnection connection) {
+    public void join(ClientData newClient, WebSocketConnection connection) {
         try {
             registry.register(newClient, connection);
-            updater.addPresence(newClient.id(), newClient.name());
+            presence.add(newClient.id(), newClient.name(), System.currentTimeMillis());
             publisher.publishInit(newClient, registry);
             publisher.publishJoin(newClient);
             log.debug("Presence INIT coordinated for {}", newClient.id());
@@ -39,13 +40,14 @@ public class PresenceNotifier implements Notifier<WebSocketConnection> {
     }
 
     @Override
-    public void notifyLeave(WebSocketConnection connection, long timestamp) {
+    public void leave(WebSocketConnection connection) {
         try {
             Optional.ofNullable(registry.deregister(connection))
-                    .map(s -> new ClientData(s.getId(), s.getName()))
+                    .map(s -> new ClientData(s.getClientId(), s.getClientName()))
                     .ifPresent(client -> {
                         publisher.publishLeave(client);
-                        updater.removePresence(client.id(), timestamp);
+                        long timestamp = System.currentTimeMillis();
+                        presence.remove(client.id(), timestamp);
                         log.debug("Presence LEAVE coordinated for {}", client.id());
                     });
         } catch (Exception e) {
@@ -54,8 +56,18 @@ public class PresenceNotifier implements Notifier<WebSocketConnection> {
     }
 
     @Override
-    public void notifyAbsent(String clientId, long timestamp) {
+    public void active(WebSocketConnection connection) {
+        var session = registry.getSessionByConnection(connection);
+        if (session != null) {
+            session.updateActivity();
+            session.updateSequence();
+        }
+    }
+
+    @Override
+    public void passive(String clientId) {
         log.debug("Absence coordinated for {}", clientId);
-        updater.removePresence(clientId, timestamp);
+        long timestamp = System.currentTimeMillis();
+        presence.remove(clientId, timestamp);
     }
 }

@@ -2,7 +2,7 @@ package org.hormigas.ws.infrastructure.rest.history.security;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 import org.hormigas.ws.infrastructure.websocket.security.JwtValidator;
 
 import java.util.Optional;

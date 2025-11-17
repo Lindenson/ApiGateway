@@ -17,20 +17,21 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(builder = Message.MessageBuilder.class)
 public class Message {
-    String messageId;
-    String correlationId;
-    String conversationId;
-
     MessageType type;
-
-    long clientTimestamp;
-    String clientTimezone;
-    long serverTimestamp;
-
-    int creditsAvailable;
 
     String senderId;
     String recipientId;
+
+    String messageId;
+    String correlationId;
+
+    long senderTimestamp;
+    String senderTimezone;
+    int creditsAvailable;
+
+    long serverTimestamp;
+    String sessionId;
+    long sequenceNumber;
 
     Payload payload;
     Map<String, String> meta;

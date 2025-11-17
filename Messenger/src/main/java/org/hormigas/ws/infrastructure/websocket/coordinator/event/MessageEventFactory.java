@@ -1,11 +1,11 @@
-package org.hormigas.ws.infrastructure.websocket.notifier.event;
+package org.hormigas.ws.infrastructure.websocket.coordinator.event;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.message.MessageType;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 
 import java.util.List;
 

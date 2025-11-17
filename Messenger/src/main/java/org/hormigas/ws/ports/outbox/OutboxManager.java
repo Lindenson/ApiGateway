@@ -7,9 +7,9 @@ import java.util.List;
 import java.util.function.Predicate;
 
 public interface OutboxManager<T> {
-    Uni<StageStatus> saveToOutbox(T payload);
-    Uni<StageStatus> removeFromOutbox(T message);
-    Uni<T> getFromOutbox();
-    Uni<List<T>> getFromOutboxBatch(int batchSize);
+    Uni<StageStatus> save(T message);
+    Uni<StageStatus> remove(T message);
+    Uni<T> fetch();
+    Uni<List<T>> fetchBatch(int batchSize);
     Uni<Long> collectGarbage(Predicate<T> filter);
 }

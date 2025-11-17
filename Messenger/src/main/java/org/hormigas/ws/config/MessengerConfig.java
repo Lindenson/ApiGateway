@@ -12,6 +12,7 @@ public interface MessengerConfig {
     Credits credits();
     Collector collector();
     Storage storage();
+    Idempotent idempotent();
 
     interface Inbound {
         int queueSize();
@@ -48,5 +49,9 @@ public interface MessengerConfig {
 
     interface Storage {
         String service();
+    }
+
+    interface Idempotent {
+        int ttlSeconds();
     }
 }

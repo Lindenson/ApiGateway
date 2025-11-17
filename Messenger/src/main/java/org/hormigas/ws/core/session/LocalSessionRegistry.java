@@ -7,9 +7,9 @@ import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.credits.lazy.LazyCreditsBuket;
-import org.hormigas.ws.domain.session.ClientData;
-import org.hormigas.ws.domain.session.ClientSession;
 import org.hormigas.ws.core.session.tidy.CleanupStrategy;
+import org.hormigas.ws.domain.credentials.ClientData;
+import org.hormigas.ws.domain.session.ClientSession;
 import org.hormigas.ws.ports.session.SessionRegistry;
 
 import java.util.List;
@@ -30,8 +30,6 @@ public class LocalSessionRegistry<T> implements SessionRegistry<T> {
     private final ConcurrentMap<T, ClientSession<T>> connectionIndex = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Set<T>> clientIndex = new ConcurrentHashMap<>();
 
-    private Gauge gauge;
-
     public LocalSessionRegistry(MessengerConfig messengerConfig,
                                 MeterRegistry meterRegistry,
                                 CleanupStrategy<T> cleanupStrategy) {
@@ -40,9 +38,9 @@ public class LocalSessionRegistry<T> implements SessionRegistry<T> {
         this.meterRegistry = meterRegistry;
         this.cleanupStrategy = cleanupStrategy;
 
-        this.gauge = Gauge.builder("websocket_clients_registered", this, LocalSessionRegistry::size)
+        Gauge.builder("websocket_clients_registered", this, LocalSessionRegistry::size)
                 .description("Number of currently active WebSocket client connections")
-                .register(meterRegistry);
+                .register(this.meterRegistry);
     }
 
     @Override
@@ -53,10 +51,11 @@ public class LocalSessionRegistry<T> implements SessionRegistry<T> {
         deregister(connection);
 
         var clientSession = ClientSession.<T>builder()
-                .id(clientData.id())
-                .name(clientData.name())
+                .clientId(clientData.id())
+                .clientName(clientData.name())
+                .credits(new LazyCreditsBuket(messengerConfig.credits().maxValue(),
+                        messengerConfig.credits().refillRatePerS()))
                 .session(connection)
-                .credits(new LazyCreditsBuket(messengerConfig.credits().maxValue(), messengerConfig.credits().refillRatePerS()))
                 .build();
 
         connectionIndex.put(connection, clientSession);
@@ -71,12 +70,12 @@ public class LocalSessionRegistry<T> implements SessionRegistry<T> {
         var removed = connectionIndex.remove(connection);
         if (removed == null) return null;
 
-        clientIndex.computeIfPresent(removed.getId(), (id, connections) -> {
+        clientIndex.computeIfPresent(removed.getClientId(), (id, connections) -> {
             connections.remove(connection);
             return connections.isEmpty() ? null : connections;
         });
 
-        log.debug("Client disconnected: {}", removed.getId());
+        log.debug("Client disconnected: {}", removed.getClientId());
         return removed;
     }
 
@@ -113,10 +112,10 @@ public class LocalSessionRegistry<T> implements SessionRegistry<T> {
     @Nonnull
     public List<ClientData> getAllOnlineClients() {
         return connectionIndex.values().stream()
-                .collect(Collectors.toMap(ClientSession::getId, s ->
+                .collect(Collectors.toMap(ClientSession::getClientId, s ->
                         s, (a, b) -> a))
                 .values().stream()
-                .map(s -> new ClientData(s.getId(), s.getName()))
+                .map(s -> new ClientData(s.getClientId(), s.getClientName()))
                 .toList();
     }
 

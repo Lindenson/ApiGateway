@@ -33,7 +33,7 @@ public class MessageHistoryResource {
                         return Uni.createFrom().item(Response.status(Response.Status.UNAUTHORIZED).build());
                     }
                     String clientId = clientOpt.get().id();
-                    return messageHistory.getAllMessagesByClient(clientId)
+                    return messageHistory.getAllBySenderId(clientId)
                             .onItem().transform(messages -> Response.ok(messages).build());
                 });
     }

@@ -17,12 +17,12 @@ import static org.hormigas.ws.domain.stage.StageStatus.*;
 public class OutboxManagerInMemory implements OutboxManager<Message> {
 
 
-    private final TimeOrderedStringKeyMap<Message> messages = new TimeOrderedStringKeyMap<>(Message::getClientTimestamp);
+    private final TimeOrderedStringKeyMap<Message> messages = new TimeOrderedStringKeyMap<>(Message::getSenderTimestamp);
     private final int MAX_OUTBOX_SIZE = 5000;
 
 
     @Override
-    public Uni<StageStatus> saveToOutbox(@Nullable Message message) {
+    public Uni<StageStatus> save(@Nullable Message message) {
         if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
 
         if (messages.size() > MAX_OUTBOX_SIZE) log.warn("TOO MUCH OUTBOX SIZE: {}", messages.size());
@@ -32,7 +32,7 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
     }
 
     @Override
-    public Uni<StageStatus> removeFromOutbox(@Nullable Message message) {
+    public Uni<StageStatus> remove(@Nullable Message message) {
         if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
 
         log.debug("Removing message {}", message);
@@ -41,7 +41,7 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
     }
 
     @Override
-    public Uni<Message> getFromOutbox() {
+    public Uni<Message> fetch() {
         Message first = messages.peekFirst();
         return first != null
                 ? Uni.createFrom().item(first)
@@ -50,7 +50,7 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
 
 
     @Override
-    public Uni<List<Message>> getFromOutboxBatch(int batchSize) {
+    public Uni<List<Message>> fetchBatch(int batchSize) {
         List<Message> batch = messages.peekFirstN(batchSize);
 
         log.debug("Batched {} messages", batch.size());

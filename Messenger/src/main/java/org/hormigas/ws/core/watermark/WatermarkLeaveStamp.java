@@ -17,6 +17,6 @@ public class WatermarkLeaveStamp implements LeaveStamp {
     @Override
     public Uni<Void> setLeaveStamp(String clientId, long timeStamp) {
         log.info("Publishing leave stamp for client {}", clientId);
-        return watermarksRegistry.addWatermark(new Watermark(clientId, timeStamp));
+        return watermarksRegistry.add(new Watermark(clientId, timeStamp));
     }
 }

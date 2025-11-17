@@ -31,24 +31,24 @@ public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
     OutboxBatchBuffer batchBuffer = new OutboxBatchBuffer(delegate);
 
     @Override
-    public Uni<StageStatus> saveToOutbox(Message payload) {
-        messageHistory.addMessage(payload.getRecipientId(), payload);
-        return delegate.saveToOutbox(payload);
+    public Uni<StageStatus> save(Message message) {
+        messageHistory.addBySenderId(message.getRecipientId(), message);
+        return delegate.save(message);
     }
 
     @Override
-    public Uni<StageStatus> removeFromOutbox(Message message) {
+    public Uni<StageStatus> remove(Message message) {
         return Uni.createFrom().item(batchBuffer.add(message));
     }
 
     @Override
-    public Uni<Message> getFromOutbox() {
-        return delegate.getFromOutbox();
+    public Uni<Message> fetch() {
+        return delegate.fetch();
     }
 
     @Override
-    public Uni<List<Message>> getFromOutboxBatch(int batchSize) {
-        return delegate.getFromOutboxBatch(batchSize);
+    public Uni<List<Message>> fetchBatch(int batchSize) {
+        return delegate.fetchBatch(batchSize);
     }
 
     @Override

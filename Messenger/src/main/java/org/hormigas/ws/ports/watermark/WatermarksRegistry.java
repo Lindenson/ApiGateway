@@ -6,6 +6,6 @@ import org.hormigas.ws.domain.watremark.Watermark;
 import java.util.List;
 
 public interface WatermarksRegistry {
-    Uni<List<Watermark>> getWatermarks(int limit);
-    Uni<Void> addWatermark(Watermark watermark);
+    Uni<Void> add(Watermark watermark);
+    Uni<List<Watermark>> fetchBatch(int limit);
 }

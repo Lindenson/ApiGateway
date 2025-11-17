@@ -1,12 +1,12 @@
-package org.hormigas.ws.infrastructure.websocket.notifier;
+package org.hormigas.ws.infrastructure.websocket.coordinator;
 
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.ports.session.SessionRegistry;
-import org.hormigas.ws.domain.session.ClientData;
-import org.hormigas.ws.infrastructure.websocket.notifier.event.PresenceEventFactory;
+import org.hormigas.ws.domain.credentials.ClientData;
+import org.hormigas.ws.infrastructure.websocket.coordinator.event.PresenceEventFactory;
 import org.hormigas.ws.infrastructure.websocket.inbound.InboundPublisher;
 
 import java.util.List;

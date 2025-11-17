@@ -10,7 +10,7 @@ import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.ports.session.SessionRegistry;
 import org.hormigas.ws.domain.session.ClientSession;
-import org.hormigas.ws.ports.notifier.Notifier;
+import org.hormigas.ws.ports.notifier.Coordinator;
 import org.hormigas.ws.infrastructure.websocket.outbound.transformers.Transformer;
 import org.hormigas.ws.infrastructure.websocket.utils.WebSocketUtils;
 
@@ -18,7 +18,7 @@ import java.util.Optional;
 
 import static org.hormigas.ws.domain.stage.StageStatus.FAILED;
 import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
-import static org.hormigas.ws.infrastructure.websocket.notifier.event.PresenceEventFactory.BROADCAST;
+import static org.hormigas.ws.infrastructure.websocket.coordinator.event.PresenceEventFactory.BROADCAST;
 
 @Slf4j
 @ApplicationScoped
@@ -34,10 +34,9 @@ public class Deliverer implements DeliveryChannel<Message> {
     WebSocketUtils utils;
 
     @Inject
-    Notifier<WebSocketConnection> notifier;
+    Coordinator<WebSocketConnection> coordinator;
 
     public Uni<StageStatus> deliver(Message message) {
-        long timestamp = System.currentTimeMillis();
         if (BROADCAST.equals(message.getRecipientId())) {
             return sendBroadcast(message)
                     .replaceWith(SUCCESS)
@@ -52,7 +51,7 @@ public class Deliverer implements DeliveryChannel<Message> {
 
         if (unis.isEmpty()) {
             log.info("No active sessions for recipient {}", message.getRecipientId());
-            notifier.notifyAbsent(message.getRecipientId(), timestamp);
+            coordinator.passive(message.getRecipientId());
             return Uni.createFrom().item(StageStatus.SKIPPED);
         }
 

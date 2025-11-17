@@ -46,16 +46,16 @@ public class TestScheduler {
         return Multi.createFrom().range(0, 500).onItem().transformToUniAndConcatenate(it -> {
             Message msg = Message.builder()
                     .messageId(idGenerator.generateId())
-                    .conversationId(idGenerator.generateId())
+                    .sessionId(idGenerator.generateId())
                     .recipientId(clients.get(counter.get() % 2).clientId)
                     .serverTimestamp(System.currentTimeMillis())
                     .senderId("server")
-                    .clientTimestamp(System.currentTimeMillis())
+                    .senderTimestamp(System.currentTimeMillis())
                     .type(MessageType.CHAT_OUT)
                     .payload(new Message.Payload("text", "Hello-" + counter.incrementAndGet()))
                     .build();
 
-            return outboxManager.saveToOutbox(msg).replaceWithVoid();
+            return outboxManager.save(msg).replaceWithVoid();
         }).collect().asList().replaceWithVoid();
     }
 

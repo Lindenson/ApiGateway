@@ -1,4 +1,4 @@
-package org.hormigas.ws.infrastructure.websocket.notifier.event;
+package org.hormigas.ws.infrastructure.websocket.coordinator.event;
 
 import java.util.List;
 

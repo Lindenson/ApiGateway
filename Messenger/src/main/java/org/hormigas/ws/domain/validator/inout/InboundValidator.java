@@ -62,7 +62,7 @@ public class InboundValidator implements Validator<Message> {
             return false;
         }
 
-        if (message.getClientTimestamp() == 0) {
+        if (message.getSenderTimestamp() == 0) {
             log.warn("Message should have clientTimestamp {}", message.getMessageId());
             return false;
         }

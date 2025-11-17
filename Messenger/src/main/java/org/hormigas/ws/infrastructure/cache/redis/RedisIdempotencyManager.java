@@ -9,6 +9,7 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.ports.idempotency.IdempotencyManager;
@@ -21,34 +22,40 @@ import java.time.Instant;
 public class RedisIdempotencyManager implements IdempotencyManager<Message> {
 
     @Inject
-    ReactiveRedisDataSource dataSource;
+    ReactiveRedisDataSource redis;
 
-    private ReactiveValueCommands<String, String> value;
+    @Inject
+    MessengerConfig config;
+
+
+    private ReactiveValueCommands<String, Integer> valueCommand;
     private ReactiveKeyCommands<String> keyCommands;
-    private static final int TTL_SECONDS = 3;
+
+    private int TTL_SECONDS;
+    private static final int DUMMY_VALUE = 1;
 
     @PostConstruct
     void init() {
-        value = dataSource.value(String.class);
-        keyCommands = dataSource.key();
+        valueCommand = redis.value(Integer.class);
+        keyCommands = redis.key();
+        TTL_SECONDS = config.idempotent().ttlSeconds();
     }
 
     private String messageKey(Message message) {
-        return message.getMessageId();
+        return "receiver:"+message.getRecipientId()+":message:"+message.getMessageId();
     }
 
     @Override
-    public Uni<StageStatus> addMessage(Message message) {
+    public Uni<StageStatus> add(Message message) {
         log.debug("Adding message {}", message);
-        String timestamp = String.valueOf(Instant.now().toEpochMilli());
-        return value.setex(messageKey(message), TTL_SECONDS, timestamp)
+        return valueCommand.setex(messageKey(message), TTL_SECONDS, DUMMY_VALUE)
                 .map(ignored -> StageStatus.SUCCESS)
                 .onFailure().invoke(ignored -> log.error("Error while adding message {}", message))
                 .onFailure().recoverWithItem(StageStatus.FAILED);
     }
 
     @Override
-    public Uni<StageStatus> removeMessage(Message message) {
+    public Uni<StageStatus> remove(Message message) {
         log.debug("Removing message {}", message);
         return keyCommands.del(messageKey(message))
                 .map(count -> count > 0 ? StageStatus.SUCCESS : StageStatus.SKIPPED)
@@ -57,7 +64,7 @@ public class RedisIdempotencyManager implements IdempotencyManager<Message> {
     }
 
     @Override
-    public Uni<Boolean> inProgress(Message message) {
+    public Uni<Boolean> isInProgress(Message message) {
         log.debug("Checking message {}", message);
         return keyCommands.exists(messageKey(message)).onItem().invoke(exists -> {
            if (exists) log.debug("Message {} delivery duplication", messageKey(message));

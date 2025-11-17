@@ -3,7 +3,7 @@ package org.hormigas.ws.infrastructure.cache.inmemory.presence;
 import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.presence.OnlineClient;
 import org.hormigas.ws.ports.presence.PresenceManager;
 
 import java.util.List;
@@ -49,20 +49,24 @@ import java.util.concurrent.ConcurrentHashMap;
 @IfBuildProperty(name = "processing.messages.storage.service", stringValue = "memory")
 public class PresenceManagerInMemory implements PresenceManager {
 
-    private final Map<String, ClientData> presences = new ConcurrentHashMap<>();
+    private final Map<String, String> presences = new ConcurrentHashMap<>();
 
     @Override
-    public Uni<Void> addClient(ClientData user) {
-        return Uni.createFrom().item(presences.put(user.id(), user)).replaceWithVoid();
+    public Uni<Void> add(String id, String name, long timestamp) {
+        return Uni.createFrom().item(presences.put(id, name)).replaceWithVoid();
     }
 
     @Override
-    public Uni<Void> removeClient(String userId, long timestamp) {
-        return Uni.createFrom().item(presences.remove(userId)).replaceWithVoid();
+    public Uni<Void> remove(String id, long timestamp) {
+        return Uni.createFrom().item(presences.remove(id)).replaceWithVoid();
     }
 
     @Override
-    public Uni<List<ClientData>> allPresent() {
-        return Uni.createFrom().item(presences.values().stream().toList());
+    public Uni<List<OnlineClient>> getAll() {
+        return Uni.createFrom().item(presences.entrySet()
+                .stream()
+                .map(it -> new OnlineClient(it.getKey(), it.getValue(), 0))
+                .toList()
+        );
     }
 }

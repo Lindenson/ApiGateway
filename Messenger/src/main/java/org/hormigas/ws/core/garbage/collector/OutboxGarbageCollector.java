@@ -21,7 +21,7 @@ public class OutboxGarbageCollector implements GarbageCollector {
 
     @Override
     public Uni<Long> collect() {
-        return watermarksRegistry.getWatermarks(maxWatermarks)
+        return watermarksRegistry.fetchBatch(maxWatermarks)
                 .onItem().ifNotNull().transformToUni(watermarks -> {
                     if (watermarks.isEmpty()) {
                         log.trace("No watermarks available for cleanup");

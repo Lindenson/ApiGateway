@@ -12,8 +12,8 @@ public class CreditsTransformer implements Transformer<Message, WebSocketConnect
     @Override
     public Message apply(@Nullable Message message, @Nonnull ClientSession<WebSocketConnection> clientSession) {
         if (message == null) return null;
-        double creditsDynamics = clientSession.getAvailableCredits();
-        int grantedCredits = (int) Math.floor(creditsDynamics);
-        return message.toBuilder().creditsAvailable(grantedCredits).build();
+
+        int credits = (int) Math.floor(clientSession.getAvailableCredits());
+        return message.toBuilder().creditsAvailable(credits).build();
     }
 }

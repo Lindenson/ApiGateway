@@ -7,7 +7,7 @@ import jakarta.inject.Inject;
 import jakarta.inject.Singleton;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.infrastructure.websocket.security.JwtValidator;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 import org.slf4j.LoggerFactory;
 
 import java.util.Optional;

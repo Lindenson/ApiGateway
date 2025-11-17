@@ -19,7 +19,7 @@ public class InMemoryWatermarkRegistry implements WatermarksRegistry {
     private final ConcurrentLinkedDeque<String> order = new ConcurrentLinkedDeque<>();
 
     @Override
-    public Uni<Void> addWatermark(Watermark watermark) {
+    public Uni<Void> add(Watermark watermark) {
         return Uni.createFrom().item(() -> {
             String clientId = watermark.clientId();
             Watermark old = map.put(clientId, watermark);
@@ -37,7 +37,7 @@ public class InMemoryWatermarkRegistry implements WatermarksRegistry {
 
 
     @Override
-    public Uni<List<Watermark>> getWatermarks(int limit) {
+    public Uni<List<Watermark>> fetchBatch(int limit) {
         int effectiveLimit = Math.min(limit, MAX_WATERMARKS);
         return Uni.createFrom().item(() -> {
             List<Watermark> result = new ArrayList<>(effectiveLimit);

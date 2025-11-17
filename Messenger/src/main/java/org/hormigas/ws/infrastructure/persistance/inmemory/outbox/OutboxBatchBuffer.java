@@ -42,7 +42,7 @@ public class OutboxBatchBuffer {
     public StageStatus add(@Nullable Message msg) {
         if (msg == null) return FAILED;
         if (!canBatch()) {
-            outboxManager.removeFromOutbox(msg)
+            outboxManager.remove(msg)
                     .subscribe().with(
                             ok -> log.debug("Directly removed {}", msg.getMessageId()),
                             err -> log.error("Direct remove failed", err)
@@ -80,7 +80,7 @@ public class OutboxBatchBuffer {
             log.debug("Flushing {} messages", batch.size());
 
             Multi.createFrom().iterable(batch)
-                    .onItem().transformToUniAndConcatenate(outboxManager::removeFromOutbox)
+                    .onItem().transformToUniAndConcatenate(outboxManager::remove)
                     .onFailure().invoke(err -> {
                         log.error("Failed to remove batch", err);
                         bufferRef.get().addAll(batch);

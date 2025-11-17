@@ -70,6 +70,8 @@
       collector:
         max-watermarks: 100
         every-s: "10s"
+      idempotent:
+        ttl-seconds: 3
       storage:
         service: redis
 

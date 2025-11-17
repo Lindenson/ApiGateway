@@ -16,7 +16,7 @@ public class CleanOutboxStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-            return outboxManager.removeFromOutbox(ctx.getPayload())
+            return outboxManager.remove(ctx.getPayload())
                     .onItem().invoke(ctx::setPersisted)
                     .replaceWith(ctx)
                     .onFailure().invoke(ctx::setError)

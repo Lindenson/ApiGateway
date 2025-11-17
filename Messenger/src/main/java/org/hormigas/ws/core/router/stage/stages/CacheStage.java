@@ -21,7 +21,7 @@ public class CacheStage implements PipelineStage<RouterContext<Message>> {
         // don't save in idempotent storage if not delivered
         if (!ctx.getDelivered().equals(SUCCESS) ) return Uni.createFrom().item(ctx);
 
-        return manager.addMessage(ctx.getPayload())
+        return manager.add(ctx.getPayload())
                 .onItem().invoke(() -> ctx.setCached(SUCCESS))
                 .replaceWith(ctx)
                 .onFailure().invoke(ctx::setError)

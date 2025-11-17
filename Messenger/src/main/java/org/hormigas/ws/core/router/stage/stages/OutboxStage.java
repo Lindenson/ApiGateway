@@ -16,7 +16,7 @@ public class OutboxStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-        return outboxManager.saveToOutbox(ctx.getPayload())
+        return outboxManager.save(ctx.getPayload())
                 .onItem().invoke(ctx::setPersisted)
                 .replaceWith(ctx)
                 .onFailure().invoke(ctx::setError)

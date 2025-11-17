@@ -16,7 +16,7 @@ public class CleanCacheStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-            return idempotencyManager.removeMessage(ctx.getPayload())
+            return idempotencyManager.remove(ctx.getPayload())
                     .onItem().invoke(ctx::setCached)
                     .replaceWith(ctx)
                     .onFailure().invoke(ctx::setError)

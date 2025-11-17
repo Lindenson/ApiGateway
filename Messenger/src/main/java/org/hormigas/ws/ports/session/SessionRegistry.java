@@ -1,7 +1,7 @@
 package org.hormigas.ws.ports.session;
 
 import org.hormigas.ws.domain.session.ClientSession;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 
 import java.util.List;
 import java.util.stream.Stream;

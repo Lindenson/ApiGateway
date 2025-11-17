@@ -7,15 +7,15 @@ import io.vertx.core.http.HttpClosedException;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.core.credits.ChannelFilter;
 import org.hormigas.ws.core.credits.filter.InboundMessageFilter;
 import org.hormigas.ws.domain.message.Message;
-import org.hormigas.ws.domain.validator.Validator;
-import org.hormigas.ws.ports.session.SessionRegistry;
 import org.hormigas.ws.domain.session.ClientSession;
-import org.hormigas.ws.core.credits.ChannelFilter;
-import org.hormigas.ws.ports.notifier.Notifier;
+import org.hormigas.ws.domain.validator.Validator;
 import org.hormigas.ws.infrastructure.websocket.inbound.InboundPublisher;
 import org.hormigas.ws.infrastructure.websocket.utils.WebSocketUtils;
+import org.hormigas.ws.ports.notifier.Coordinator;
+import org.hormigas.ws.ports.session.SessionRegistry;
 
 @Slf4j
 @WebSocket(path = "/ws")
@@ -38,7 +38,7 @@ public class WebsocketService {
     SessionRegistry<WebSocketConnection> registry;
 
     @Inject
-    Notifier<WebSocketConnection> notifier;
+    Coordinator<WebSocketConnection> coordinator;
 
 
     private final ChannelFilter<Message, WebSocketConnection> channelFilter = new InboundMessageFilter<>();
@@ -46,14 +46,15 @@ public class WebsocketService {
 
     @OnOpen
     public void onOpen(WebSocketConnection connection) {
-        webSocketUtils.getValidatedClientData(connection).ifPresentOrElse(client -> {
-            notifier.notifyJoin(client, connection);
-        }, () -> connection.closeAndAwait(webSocketUtils.getCloseReason()));
+        webSocketUtils.getValidatedClientData(connection)
+                .ifPresentOrElse(client -> coordinator.join(client, connection),
+                        () -> connection.closeAndAwait(webSocketUtils.getCloseReason())
+                );
     }
 
     @OnClose
     public void onClose(WebSocketConnection connection) {
-        notifier.notifyLeave(connection, System.currentTimeMillis());
+        coordinator.leave(connection);
     }
 
 
@@ -68,12 +69,14 @@ public class WebsocketService {
             }
             Message message = objectMapper.readValue(rawJson, Message.class);
             if (!channelFilter.filter(message, clientSession)) {
+                log.warn("Message (id={}): {} filtered out", message.getMessageId(), message);
                 return Uni.createFrom().voidItem();
             }
             if (!validator.valid(message)) {
                 log.warn("Invalid message (id={}): {}", message.getMessageId(), message);
                 return Uni.createFrom().voidItem();
             }
+            coordinator.active(connection);
             incomingPublisher.publish(message);
         } catch (Exception e) {
             log.error("Invalid message format: {}", rawJson, e);

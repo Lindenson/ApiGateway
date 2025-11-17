@@ -98,7 +98,7 @@ public class OutboxPoller implements BatchPoller {
         }
 
         log.debug("Fetching messages for dispatch");
-        return outboxManager.getFromOutboxBatch(batchSize).invoke(messages -> {
+        return outboxManager.fetchBatch(batchSize).invoke(messages -> {
             lastBatchSize.set(messages.size());
             messages.forEach(publisher::publish);
         }).replaceWithVoid();

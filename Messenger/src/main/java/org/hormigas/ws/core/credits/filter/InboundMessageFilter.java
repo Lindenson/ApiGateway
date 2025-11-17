@@ -17,11 +17,11 @@ public class InboundMessageFilter<W> implements ChannelFilter<Message, W> {
     @Override
     public boolean filter(@Nullable Message message, @Nonnull ClientSession<W> clientSession) {
         if (message == null) {
-            log.error("Message is null for a client {}", clientSession.getId());
+            log.error("Message is null for a client {}", clientSession.getClientId());
             return false;
         }
         if (creditPolicy.test(message) && !clientSession.tryConsumeCredits()) {
-            log.warn("Rate limit exceeded for client {}", clientSession.getId());
+            log.warn("Rate limit exceeded for client {}", clientSession.getClientId());
             return false;
         }
         return true;

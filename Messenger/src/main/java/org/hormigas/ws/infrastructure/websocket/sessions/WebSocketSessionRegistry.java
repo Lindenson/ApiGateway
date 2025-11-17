@@ -7,7 +7,7 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.core.session.LocalSessionRegistry;
-import org.hormigas.ws.domain.session.ClientData;
+import org.hormigas.ws.domain.credentials.ClientData;
 import org.hormigas.ws.domain.session.ClientSession;
 import org.hormigas.ws.core.session.tidy.CleanupStrategy;
 import org.hormigas.ws.core.session.tidy.FractionalCleanupStrategy;

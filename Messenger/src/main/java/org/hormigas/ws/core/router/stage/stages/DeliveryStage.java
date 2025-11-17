@@ -56,7 +56,7 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
         ) {
             return Uni.createFrom().item(Boolean.TRUE);
         }
-        return idempotencyManager.inProgress(msg)
+        return idempotencyManager.isInProgress(msg)
                 .map(inProgress -> !inProgress);
     }
 
