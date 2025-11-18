@@ -41,9 +41,6 @@ public class MessagePipelineResolver implements PipelineResolver<Message, Messag
         routingMatrix.put(PRESENT_INIT, INBOUND_DIRECT);
         routingMatrix.put(PRESENT_JOIN, INBOUND_DIRECT);
         routingMatrix.put(PRESENT_LEAVE, INBOUND_DIRECT);
-
-        //SPECIAL
-        routingMatrix.put(WATERMARK, SKIP);
     }
 
     @Override

@@ -8,6 +8,7 @@ import io.quarkus.redis.datasource.keys.ReactiveKeyCommands;
 import io.quarkus.redis.datasource.value.ReactiveValueCommands;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
+import io.vertx.mutiny.redis.client.Response;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
@@ -17,6 +18,7 @@ import org.hormigas.ws.ports.presence.PresenceManager;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Function;
 
 @Slf4j
 @ApplicationScoped
@@ -77,7 +79,7 @@ public class RedisPresenceManager implements PresenceManager {
         List<String> args = List.of(SCRIPT, "0", clientKey(id), String.valueOf(timestamp));
         return lowLevelClient.eval(args).onItem()
                 .invoke(it -> log.debug("Removed {} clients", it.toString()))
-                .onFailure().invoke(throwable -> log.error("Error removing user {}", id, throwable))
+                .onFailure().invoke(er -> log.error("Error removing user {}", id, er))
                 .onFailure().recoverWithNull()
                 .replaceWithVoid();
     }
@@ -88,19 +90,35 @@ public class RedisPresenceManager implements PresenceManager {
 
         return keyCommands.scan(args)
                 .toMulti()
+                .filter(reactiveKey -> reactiveKey != null && !reactiveKey.isEmpty())
                 .group().intoLists().of(BATCH_SIZE)
-                .onItem().transformToUni(batchKeys ->
-                        lowLevelClient.mget(batchKeys)
-                                .map(response -> {
-                                    List<OnlineClient> clients = new ArrayList<>();
-                                    for (int i = 0; i < batchKeys.size(); i++) {
-                                        String val = response.get(i) != null ? response.get(i).toString() : null;
-                                        var client = parseClientData(batchKeys.get(i), val);
-                                        if (client != null) clients.add(client);
-                                    }
-                                    return clients;
-                                })
-                ).concatenate().toUni();
+                .onItem().transformToUni(keys ->
+                        lowLevelClient.mget(keys)
+                                .onItem().transform(mapResponse(keys))
+                                .onFailure().invoke(er -> log.error("mget failed for keys {}: {}", keys, er.toString()))
+                                .onFailure().recoverWithItem(List.of())
+                )
+                .concatenate().toUni()
+                .replaceIfNullWith(List::of)
+                .onFailure().invoke(er -> log.error("Failed to scan presence keys: {}", er.toString(), er))
+                .onFailure().recoverWithItem(List.of());
+    }
+
+    private Function<Response, List<OnlineClient>> mapResponse(List<String> batchKeys) {
+        return response -> {
+            List<OnlineClient> clients = new ArrayList<>();
+            try {
+                for (int i = 0; i < batchKeys.size(); i++) {
+                    String val = (response.get(i) != null) ? response.get(i).toString() : null;
+                    var client = parseClientData(batchKeys.get(i), val);
+                    if (client != null) clients.add(client);
+                }
+            } catch (Exception e) {
+                log.error("Error parsing mget response for keys {} : {}", batchKeys, e.toString(), e);
+                return List.of();
+            }
+            return clients;
+        };
     }
 
 
@@ -109,11 +127,13 @@ public class RedisPresenceManager implements PresenceManager {
             return new OnlineClient(key, null, 0);
         }
         try {
-            String[] parts = value.split(":");
+            String[] parts = key.split(":");
+            String id = parts.length == 2? parts[1] : key;
+            parts = value.split(":");
             if (parts.length == 4) {
                 String name = parts[1];
                 long timestamp = Long.parseLong(parts[3]);
-                return new OnlineClient(key, name, timestamp);
+                return new OnlineClient(id, name, timestamp);
             }
         } catch (NumberFormatException e) {
             log.error("Error parsing value {}", value, e);

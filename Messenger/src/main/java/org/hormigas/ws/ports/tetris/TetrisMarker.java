@@ -2,11 +2,9 @@ package org.hormigas.ws.ports.tetris;
 
 import io.smallrye.mutiny.Uni;
 
-import java.util.UUID;
-
 public interface TetrisMarker {
-    Uni<Void> onSent(UUID recipientId, long id);
-    Uni<Void> onAck(UUID recipientId, long id);
-    Uni<Void> onDisconnect(UUID recipientId);
+    Uni<Void> onSent(String recipientKey, long id);
+    Uni<Void> onAck(String recipientKey, long id);
+    Uni<Void> onDisconnect(String recipientKey);
     Uni<Long> computeGlobalSafeDeleteId();
 }

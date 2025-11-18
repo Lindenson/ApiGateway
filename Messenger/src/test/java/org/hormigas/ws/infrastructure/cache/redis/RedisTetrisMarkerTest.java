@@ -22,13 +22,13 @@ public class RedisTetrisMarkerTest {
     @Inject
     RedisAPI redis;
 
-    private UUID recipient1;
-    private UUID recipient2;
+    private String recipient1;
+    private String recipient2;
 
     @BeforeEach
     public void setup() {
-        recipient1 = UUID.randomUUID();
-        recipient2 = UUID.randomUUID();
+        recipient1 = UUID.randomUUID().toString();
+        recipient2 = UUID.randomUUID().toString();
         redis.flushall(List.of()).await().indefinitely();
     }
 
@@ -249,7 +249,7 @@ public class RedisTetrisMarkerTest {
     @Test
     public void testScanMultiIteration() {
         for (int i = 0; i < 150; i++) {
-            UUID r = UUID.randomUUID();
+            String r = UUID.randomUUID().toString();
             tetris.onSent(r, 5).await().indefinitely();
             tetris.onAck(r, 5).await().indefinitely();
         }

@@ -34,39 +34,46 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     @Override
     public Uni<MessageEnvelope<Message>> routeIn(Message message) {
 
-        var pipeline = pipelineResolver.resolvePipeline(message);
-        logger.logRoutingStart(message, pipeline);
-        var context = prototype.createOutboundContext(pipeline, message);
+        try {
+            var pipeline = pipelineResolver.resolvePipeline(message);
+            logger.logRoutingStart(message, pipeline);
+            var context = prototype.createOutboundContext(pipeline, message);
 
-        Uni<RouterContext<Message>> processed = switch (pipeline) {
-            case INBOUND_PERSISTENT -> outboxStage.apply(context)
-                    .onItem().transformToUni(ackStage::apply)
-                    .onItem().transformToUni(deliveryStage::apply)
-                    .onItem().transformToUni(cacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply);
+            Uni<RouterContext<Message>> processed = switch (pipeline) {
+                case INBOUND_PERSISTENT -> outboxStage.apply(context)
+                        .onItem().transformToUni(ackStage::apply)
+                        .onItem().transformToUni(deliveryStage::apply)
+                        .onItem().transformToUni(cacheStage::apply)
+                        .onItem().transformToUni(finalStage::apply);
 
-            case INBOUND_CACHED -> deliveryStage.apply(context)
-                    .onItem().transformToUni(cacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply);
+                case INBOUND_CACHED -> deliveryStage.apply(context)
+                        .onItem().transformToUni(cacheStage::apply)
+                        .onItem().transformToUni(finalStage::apply);
 
-            case INBOUND_DIRECT -> deliveryStage.apply(context)
-                    .onItem().transformToUni(finalStage::apply);
+                case INBOUND_DIRECT -> deliveryStage.apply(context)
+                        .onItem().transformToUni(finalStage::apply);
 
-            case ACK_PERSISTENT -> cleanOutboxStage.apply(context)
-                    .onItem().transformToUni(cleanCacheStage::apply)
-                    .onItem().transformToUni(finalStage::apply);
+                case ACK_PERSISTENT -> cleanOutboxStage.apply(context)
+                        .onItem().transformToUni(cleanCacheStage::apply)
+                        .onItem().transformToUni(finalStage::apply);
 
-            case ACK_CACHED -> cleanCacheStage.apply(context)
-                    .onItem().transformToUni(finalStage::apply);
+                case ACK_CACHED -> cleanCacheStage.apply(context)
+                        .onItem().transformToUni(finalStage::apply);
 
-            case SKIP -> finalStage.apply(context);
+                case SKIP -> finalStage.apply(context);
 
-            default -> {
-                log.error("Unhandled pipeline: {} for message: {}", pipeline, message);
-                yield finalStage.apply(context.withError(new IllegalStateException("Unhandled pipeline: " + pipeline)));
-            }
-        };
-        return logAndEnvelope(processed);
+                default -> {
+                    log.error("Unhandled pipeline: {} for message: {}", pipeline, message);
+                    yield finalStage.apply(context.withError(new IllegalStateException("Unhandled pipeline: " + pipeline)));
+                }
+            };
+            return logAndEnvelope(processed);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.error("EEEEEEEEEEEEEEEE {}", e.getMessage());
+            return Uni.createFrom().item(MessageEnvelope.<Message>builder().message(message).processed(true).build());
+        }
+
     }
 
     private Uni<MessageEnvelope<Message>> logAndEnvelope(Uni<RouterContext<Message>> processed) {

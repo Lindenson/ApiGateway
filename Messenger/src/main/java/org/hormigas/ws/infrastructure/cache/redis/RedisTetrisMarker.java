@@ -1,14 +1,15 @@
 package org.hormigas.ws.infrastructure.cache.redis;
 
 import io.quarkus.arc.properties.IfBuildProperty;
+import io.smallrye.common.constraint.NotNull;
 import io.smallrye.mutiny.Uni;
 import io.vertx.mutiny.redis.client.RedisAPI;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.ports.tetris.TetrisMarker;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * Redis-backed implementation of Tetris pattern.
@@ -18,6 +19,7 @@ import java.util.UUID;
  * - tetris:recipient:{id}:acks-> ZSET of acked message ids (score = id, member = id)
  * - tetris:message:id:counter-> STRING counter for generating monotonic message ids
  */
+@Slf4j
 @ApplicationScoped
 @IfBuildProperty(name = "processing.messages.storage.service", stringValue = "redis")
 public class RedisTetrisMarker implements TetrisMarker {
@@ -35,9 +37,8 @@ public class RedisTetrisMarker implements TetrisMarker {
     // onSent
     // ----------------------------
     @Override
-    public Uni<Void> onSent(UUID recipientId, long messageId) {
-        final String key = recipientKey(recipientId);
-
+    public Uni<Void> onSent(@NotNull String recipientId, long messageId) {
+        final String recipientKey = recipientKey(recipientId);
         final String SCRIPT = """
                 -- ARGV[1] = key
                 -- ARGV[2] = msgId
@@ -58,8 +59,9 @@ public class RedisTetrisMarker implements TetrisMarker {
                 return nextExpected
                 """;
 
-        List<String> args = List.of(SCRIPT, "0", key, String.valueOf(messageId));
+        List<String> args = List.of(SCRIPT, "0", recipientKey, String.valueOf(messageId));
         return lowLevelClient.eval(args)
+                .onFailure().invoke(er -> log.error("Error removing user {}", recipientKey, er))
                 .replaceWithVoid();
     }
 
@@ -67,10 +69,9 @@ public class RedisTetrisMarker implements TetrisMarker {
     // onAck
     // ----------------------------
     @Override
-    public Uni<Void> onAck(UUID recipientId, long messageId) {
+    public Uni<Void> onAck(@NotNull String recipientId, long messageId) {
         final String recipientKey = recipientKey(recipientId);
         final String ackKey = recipientKey + ACKS_SUFFIX;
-
         final String SCRIPT = """
                 -- ARGV[1] = key
                 -- ARGV[2] = ackKey
@@ -124,10 +125,9 @@ public class RedisTetrisMarker implements TetrisMarker {
     // onDisconnect
     // ----------------------------
     @Override
-    public Uni<Void> onDisconnect(UUID recipientId) {
+    public Uni<Void> onDisconnect(String recipientId) {
         final String recipientKey = recipientKey(recipientId);
         final String ackKey = recipientKey + ACKS_SUFFIX;
-
         final String SCRIPT = """
                 -- ARGV[1] = key
                 -- ARGV[2] = ackKey
@@ -172,7 +172,6 @@ public class RedisTetrisMarker implements TetrisMarker {
      */
     @Override
     public Uni<Long> computeGlobalSafeDeleteId() {
-
         final String SCRIPT = """
                 -- ARGV[1] = pattern
                 -- ARGV[2] = count (optional)
@@ -225,7 +224,7 @@ public class RedisTetrisMarker implements TetrisMarker {
     // ----------------------------
     // helpers
     // ----------------------------
-    private String recipientKey(UUID id) {
+    private String recipientKey(String id) {
         return RECIPIENT_KEY_PREFIX + id;
     }
 }

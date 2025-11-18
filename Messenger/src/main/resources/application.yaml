@@ -13,8 +13,16 @@
       db-kind: postgresql
       username: ant
       password: ant
+      jdbc:
+        url: jdbc:postgresql://postgres:5432/hormigasdb
       reactive:
         url: postgres://postgres/hormigasdb
+
+    flyway:
+      migrate-at-start: true
+      baseline-on-migrate: true
+      locations:
+        - db/migration
 
     redis:
       hosts: redis://redis:6379

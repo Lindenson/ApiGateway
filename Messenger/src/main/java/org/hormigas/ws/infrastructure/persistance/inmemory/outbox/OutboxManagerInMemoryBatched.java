@@ -1,5 +1,6 @@
 package org.hormigas.ws.infrastructure.persistance.inmemory.outbox;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -15,6 +16,7 @@ import java.util.function.Predicate;
 
 @Slf4j
 @ApplicationScoped
+@IfBuildProperty(name = "processing.messages.storage.service", stringValue = "memory")
 public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
 
     @Inject

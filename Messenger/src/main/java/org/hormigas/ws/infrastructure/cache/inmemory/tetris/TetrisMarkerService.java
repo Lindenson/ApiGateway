@@ -8,7 +8,6 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.UUID;
 
 /**
  * TetrisService is responsible for tracking sent messages, acknowledgments (acks), and disconnected recipients.
@@ -23,7 +22,7 @@ public class TetrisMarkerService implements TetrisMarker {
     /**
      * Mapping from recipient UUID to their current state.
      */
-    private final ConcurrentMap<UUID, RecipientState> map = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, RecipientState> map = new ConcurrentHashMap<>();
 
     /**
      * Registers that a message with the given ID has been sent to the specified recipient.
@@ -32,7 +31,7 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param id          the sent message ID
      */
     @Override
-    public Uni<Void> onSent(UUID recipientId, long id) {
+    public Uni<Void> onSent(String recipientId, long id) {
         map.computeIfAbsent(recipientId, k -> new RecipientState())
                 .onSent(id);
         return Uni.createFrom().voidItem();
@@ -45,7 +44,7 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param id          the acknowledged message ID
      */
     @Override
-    public Uni<Void> onAck(UUID recipientId, long id) {
+    public Uni<Void> onAck(String recipientId, long id) {
         RecipientState s = map.get(recipientId);
         if (s != null) s.onAck(id);
         return Uni.createFrom().voidItem();
@@ -58,7 +57,7 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param recipientId the recipient's UUID
      */
     @Override
-    public Uni<Void> onDisconnect(UUID recipientId) {
+    public Uni<Void> onDisconnect(String recipientId) {
         RecipientState s = map.get(recipientId);
         if (s != null) s.onDisconnect();
         return Uni.createFrom().voidItem();
@@ -174,8 +173,8 @@ public class TetrisMarkerService implements TetrisMarker {
         /**
          * Advances nextExpectedId while possible.
          * nextExpectedId is increased if:
-         *  - it is less than or equal to disconnectCutoffId
-         *  - the ID exists in ackedOutOfOrder
+         * - it is less than or equal to disconnectCutoffId
+         * - the ID exists in ackedOutOfOrder
          */
         private void advanceWhilePossible() {
             while (true) {

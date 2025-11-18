@@ -16,7 +16,9 @@ public class ClientSession<T> {
     private final String clientName;
     private final Credits credits;
     private final long connectedAt = System.currentTimeMillis();
+    @Builder.Default
     private long lastActiveAt = System.currentTimeMillis();
+    @Builder.Default
     private AtomicLong sequenceCurrentNumber =  new AtomicLong(0);
     @EqualsAndHashCode.Include
     private final T session;

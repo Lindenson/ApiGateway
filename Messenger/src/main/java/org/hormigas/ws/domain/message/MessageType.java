@@ -13,6 +13,5 @@ public enum MessageType {
     PRESENT_JOIN,
     PRESENT_LEAVE,
 
-    SERVICE_OUT,
-    WATERMARK
+    SERVICE_OUT
 }
