@@ -10,7 +10,7 @@ function createChatMessage(msg: ServerMessage, currentUserId: string): ChatMessa
         direction: isOut ? 'out' : 'in',
         acknowledged: isOut ? true : undefined,
         peerId: isOut ? msg.recipientId : msg.senderId,
-        clientTimestamp: msg.clientTimestamp,
+        senderTimestamp: msg.senderTimestamp,
     };
 }
 
@@ -31,7 +31,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
             map.set(msg.id, msg);
 
             const sorted = Array.from(map.values())
-                .sort((a, b) => a.clientTimestamp - b.clientTimestamp)
+                .sort((a, b) => a.senderTimestamp - b.senderTimestamp)
                 .slice(-50);
 
             return { ...prev, [peerId]: sorted };
@@ -56,14 +56,14 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !currentUserId) return;
 
         const msgId = crypto.randomUUID();
-        const clientTimestamp = Date.now();
+        const senderTimestamp = Date.now();
 
         const msg: ServerMessage = {
             messageId: msgId,
             senderId: currentUserId,
             recipientId,
             type: 'CHAT_IN',
-            clientTimestamp,
+            senderTimestamp,
             payload: { kind: 'chat', body: text },
         } as ServerMessage;
 
@@ -75,7 +75,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
             direction: 'out',
             acknowledged: false,
             peerId: recipientId,
-            clientTimestamp,
+            senderTimestamp: senderTimestamp,
         });
     }, [addMessage, currentUserId]);
 
@@ -129,7 +129,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
                         const result: Record<string, ChatMessage[]> = {};
                         for (const peerId of Object.keys(map)) {
                             result[peerId] = Array.from(map[peerId].values())
-                                .sort((a, b) => a.clientTimestamp - b.clientTimestamp)
+                                .sort((a, b) => a.senderTimestamp - b.senderTimestamp)
                                 .slice(-50);
                         }
                         setConversations(result);
@@ -156,6 +156,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
                         const users = data.type === 'PRESENT_INIT' ? JSON.parse(data.payload.body) : [JSON.parse(data.payload.body)];
                         const unique = Array.from(new Map(users.map(u => [u.id, u])).values())
                             .sort((a, b) => a.name?.localeCompare(b.name ?? '') ?? 0);
+
                         setPresence(prev => {
                             const map = new Map(prev.map(p => [p.id, p]));
                             unique.forEach(u => map.set(u.id, u));
@@ -187,7 +188,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
                         type: 'CHAT_ACK',
                         senderId: data.recipientId,
                         recipientId: data.senderId,
-                        clientTimestamp: Date.now(),
+                        senderTimestamp: Date.now(),
                         payload: { kind: 'ack', body: `Ack for message ${data.messageId}` },
                     }));
                 }

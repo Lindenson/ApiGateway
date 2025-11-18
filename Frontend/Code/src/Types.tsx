@@ -4,7 +4,7 @@ export interface BaseMessage {
     id: string;
     text: string;
     direction: MessageDirection;
-    clientTimestamp: number;
+    senderTimestamp: number;
 }
 
 export interface IncomingMessage extends BaseMessage {
@@ -38,7 +38,7 @@ export interface ServerMessage {
     recipientId: string;
     payload: ServerPayload;
     type: 'CHAT_IN' | 'CHAT_OUT' | 'CHAT_ACK' | 'PRESENT_INIT' | 'PRESENT_JOIN' | 'PRESENT_LEAVE';
-    clientTimestamp: number;
+    senderTimestamp: number;
 }
 
 export type PresenceUser = { id: string; name?: string; };
