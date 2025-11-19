@@ -20,12 +20,12 @@ export interface OutgoingMessage extends BaseMessage {
 export type ChatMessage = IncomingMessage | OutgoingMessage;
 
 export interface ServerPayloadChat {
-    kind: 'chat';
+    kind: 'text';
     body: string;
 }
 
 export interface ServerPayloadAck {
-    kind: 'ack';
+    kind: 'text';
     body: string;
 }
 
@@ -36,9 +36,11 @@ export interface ServerMessage {
     correlationId?: string;
     senderId: string;
     recipientId: string;
+    conversationId: string;
     payload: ServerPayload;
     type: 'CHAT_IN' | 'CHAT_OUT' | 'CHAT_ACK' | 'PRESENT_INIT' | 'PRESENT_JOIN' | 'PRESENT_LEAVE';
     senderTimestamp: number;
+    senderTimezone: string;
 }
 
 export type PresenceUser = { id: string; name?: string; };

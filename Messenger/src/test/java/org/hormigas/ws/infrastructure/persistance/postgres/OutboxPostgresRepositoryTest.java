@@ -7,24 +7,24 @@ import org.hormigas.ws.domain.generator.IdGenerator;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.HistoryRow;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.Inserted;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.OutboxMessage;
+import org.hormigas.ws.infrastructure.persistance.postgres.outbox.OutboxPostgresRepository;
 import org.junit.jupiter.api.*;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 @QuarkusTest
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-public class OutboxRepositoryTest {
+public class OutboxPostgresRepositoryTest {
 
     @Inject
     PgPool client;
 
     @Inject
-    OutboxRepository repo;
+    OutboxPostgresRepository repo;
 
     @Inject
     IdGenerator idGenerator;
@@ -35,7 +35,10 @@ public class OutboxRepositoryTest {
                 CREATE TABLE IF NOT EXISTS message_history (
                     id BIGSERIAL PRIMARY KEY,
                     message_id VARCHAR(128) NOT NULL,
-                    message_json JSONB NOT NULL,
+                    conversation_id VARCHAR(128),
+                    sender_id VARCHAR(128),
+                    recipient_id VARCHAR(128),
+                    payload_json JSONB NOT NULL,
                     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
                 );
                 CREATE INDEX IF NOT EXISTS idx_message_history_message_id ON message_history(message_id);
@@ -44,6 +47,7 @@ public class OutboxRepositoryTest {
                     type VARCHAR(64) NOT NULL,
                     sender_id VARCHAR(128) NOT NULL,
                     recipient_id VARCHAR(128) NOT NULL,
+                    conversation_id VARCHAR(128),
                     message_id VARCHAR(128) NOT NULL,
                     correlation_id VARCHAR(128),
                     sender_ts BIGINT NOT NULL,
@@ -67,14 +71,16 @@ public class OutboxRepositoryTest {
         client.query("TRUNCATE outbox, message_history RESTART IDENTITY").execute().await().indefinitely();
     }
 
-    private OutboxMessage sample(String sender, String recipient, int idx) {
+    private OutboxMessage sample(String sender, String recipient, String conversationId, int idx) {
         String payload = "{\"kind\":\"text\",\"body\":\"hello " + idx + "\"}";
         String meta = "{\"k\":\"v\"}";
         return new OutboxMessage(
-                sender, recipient,
-                "CHAT",
+                "CHAT_OUT",       // type
+                sender,
+                recipient,
+                conversationId,
                 "msg-" + idx,
-                null,
+                null,          // correlationId
                 Instant.now().toEpochMilli(),
                 "UTC",
                 Instant.now().toEpochMilli(),
@@ -83,16 +89,17 @@ public class OutboxRepositoryTest {
         );
     }
 
-    private HistoryRow sampleHistory(int idx) {
+    private HistoryRow sampleHistory(String conversationId, int idx) {
         String msgId = "msg-" + idx;
-        String json = "{\"messageId\":\"" + msgId + "\",\"payload\":{\"kind\":\"text\",\"body\":\"hello " + idx + "\"}}";
-        return new HistoryRow(msgId, json, Instant.now());
+        String payloadJson = "{\"messageId\":\"" + msgId + "\",\"payload\":{\"kind\":\"text\",\"body\":\"hello " + idx + "\"}}";
+        return new HistoryRow(msgId, conversationId, "sender-" + idx, "recipient-" + idx, payloadJson, Instant.now());
     }
 
     @Test
     public void testInsertHistoryAndOutboxTransactional() {
-        var h = sampleHistory(1);
-        var o = sample(idGenerator.generateId(), idGenerator.generateId(), 1);
+        String conversationId = "conv-1";
+        var h = sampleHistory(conversationId, 1);
+        var o = sample("s1", "r1", conversationId, 1);
 
         List<Inserted> res = repo.insertHistoryAndOutboxTransactional(List.of(h), List.of(o))
                 .await().indefinitely();
@@ -104,10 +111,15 @@ public class OutboxRepositoryTest {
 
     @Test
     public void testFetchBatchForProcessingLeasesAndReturnsRows() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        repo.insertBatch(List.of(sample(s, r, 1), sample(s, r, 2), sample(s, r, 3)))
-                .await().indefinitely();
+        String conversationId = "conv-2";
+        var s = "sender2";
+        var r = "recipient2";
+
+        repo.insertOutboxBatch(List.of(
+                sample(s, r, conversationId, 1),
+                sample(s, r, conversationId, 2),
+                sample(s, r, conversationId, 3)
+        )).await().indefinitely();
 
         var batch = repo.fetchBatchForProcessing(2, Duration.ofSeconds(5)).await().indefinitely();
         assertEquals(2, batch.size());
@@ -125,19 +137,27 @@ public class OutboxRepositoryTest {
     }
 
     @Test
-    public void testInsertBatchReturnIds() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        var res = repo.insertBatch(List.of(sample(s, r, 10), sample(s, r, 11))).await().indefinitely();
+    public void testInsertOutboxBatchReturnIds() {
+        String conversationId = "conv-3";
+        String s = "sender3";
+        String r = "recipient3";
+
+        var res = repo.insertOutboxBatch(List.of(
+                sample(s, r, conversationId, 10),
+                sample(s, r, conversationId, 11)
+        )).await().indefinitely();
+
         assertEquals(2, res.size());
         assertTrue(res.get(0).id() > 0);
     }
 
     @Test
     public void testLeasePreventsReprocessing() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        repo.insertBatch(List.of(sample(s, r, 1))).await().indefinitely();
+        String conversationId = "conv-4";
+        String s = "sender4";
+        String r = "recipient4";
+
+        repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
 
         var batch1 = repo.fetchBatchForProcessing(10, Duration.ofSeconds(5)).await().indefinitely();
         assertEquals(1, batch1.size());
@@ -146,70 +166,75 @@ public class OutboxRepositoryTest {
         assertEquals(0, batch2.size());
     }
 
-
     @Test
     public void testProcessingAttemptsIncrement() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        repo.insertBatch(List.of(sample(s, r, 1))).await().indefinitely();
+        String conversationId = "conv-5";
+        String s = "sender5";
+        String r = "recipient5";
 
+        repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
         repo.fetchBatchForProcessing(10, Duration.ofSeconds(5)).await().indefinitely();
 
-        var row = client.query("SELECT processing_attempts FROM outbox LIMIT 1").execute().await().indefinitely().iterator().next();
+        var row = client.query("SELECT processing_attempts FROM outbox LIMIT 1")
+                .execute().await().indefinitely()
+                .iterator().next();
         assertEquals(1, row.getInteger("processing_attempts"));
     }
 
-
     @Test
     public void testStatusUpdatedToProcessing() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        repo.insertBatch(List.of(sample(s, r, 1))).await().indefinitely();
+        String conversationId = "conv-6";
+        String s = "sender6";
+        String r = "recipient6";
 
+        repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
         repo.fetchBatchForProcessing(10, Duration.ofSeconds(5)).await().indefinitely();
 
-        var row = client.query("SELECT status FROM outbox LIMIT 1").execute().await().indefinitely().iterator().next();
+        var row = client.query("SELECT status FROM outbox LIMIT 1")
+                .execute().await().indefinitely()
+                .iterator().next();
         assertEquals("PROCESSING", row.getString("status"));
     }
 
-
     @Test
     public void testTransactionalRollback() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
-        var h = new HistoryRow(s, "{json}", Instant.now());
-        var o = sample(s + s + s + s + s + s, r, 1); // six times more id than permitted
+        String conversationId = "conv-7";
+        String s = "sender7";
+        String r = "recipient7";
+
+        var h = sampleHistory(conversationId, 1);
+        var o = sample(s, null, conversationId, 1); // violates not-null constraint
 
         try {
             repo.insertHistoryAndOutboxTransactional(List.of(h), List.of(o))
                     .await().indefinitely();
-            Assertions.fail("Should fail");
+            fail("Should fail");
         } catch (Exception ignored) {
         }
 
-        var count1 = client.query("SELECT count(*) FROM message_history")
+        long countHistory = client.query("SELECT count(*) FROM message_history")
                 .execute().await().indefinitely()
                 .iterator().next().getLong(0);
-        var count2 = client.query("SELECT count(*) FROM outbox")
+        long countOutbox = client.query("SELECT count(*) FROM outbox")
                 .execute().await().indefinitely()
                 .iterator().next().getLong(0);
 
-        assertEquals(0L, count1);
-        assertEquals(0L, count2);
-
+        assertEquals(0L, countHistory);
+        assertEquals(0L, countOutbox);
     }
 
     @Test
     public void testDeleteOlderThan() {
-        String s = idGenerator.generateId();
-        String r = idGenerator.generateId();
+        String conversationId = "conv-8";
+        String s = "sender8";
+        String r = "recipient8";
 
         List<OutboxMessage> batch = List.of(
-                sample(s, r, 1),
-                sample(s, r, 2),
-                sample(s, r, 3)
+                sample(s, r, conversationId, 1),
+                sample(s, r, conversationId, 2),
+                sample(s, r, conversationId, 3)
         );
-        repo.insertBatch(batch).await().indefinitely();
+        repo.insertOutboxBatch(batch).await().indefinitely();
 
         long countBefore = client.query("SELECT count(*) FROM outbox")
                 .execute().await().indefinitely()

@@ -64,7 +64,9 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
             recipientId,
             type: 'CHAT_IN',
             senderTimestamp,
-            payload: { kind: 'chat', body: text },
+            senderTimezone: 'Europe/Madrid',
+            conversationId: 'new chat',
+            payload: { kind: 'text', body: text },
         } as ServerMessage;
 
         wsRef.current.send(JSON.stringify(msg));
@@ -189,12 +191,12 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
                         senderId: data.recipientId,
                         recipientId: data.senderId,
                         senderTimestamp: Date.now(),
-                        payload: { kind: 'ack', body: `Ack for message ${data.messageId}` },
+                        payload: { kind: 'text', body: `Ack for message ${data.messageId}` },
                     }));
                 }
 
                 // --- Chat messages ---
-                if (data.payload.kind !== 'chat') return;
+                if (data.payload.kind !== 'text') return;
                 const peerId = data.senderId === currentUserId ? data.recipientId : data.senderId;
                 addMessage(peerId, createChatMessage(data, currentUserId));
             };

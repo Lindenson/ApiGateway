@@ -1,5 +1,6 @@
 package org.hormigas.ws.infrastructure.persistance.inmemory.history;
 
+import io.quarkus.arc.properties.IfBuildProperty;
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +16,7 @@ import java.util.concurrent.ConcurrentLinkedDeque;
 
 @Slf4j
 @ApplicationScoped
+@IfBuildProperty(name = "processing.messages.storage.service", stringValue = "memory")
 public class InMemoryMessageHistory implements History<Message> {
 
     private static final int MAX_MESSAGES_PER_CLIENT = 1000;

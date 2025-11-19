@@ -11,6 +11,7 @@ import org.hormigas.ws.core.credits.ChannelFilter;
 import org.hormigas.ws.core.credits.filter.InboundMessageFilter;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.session.ClientSession;
+import org.hormigas.ws.domain.validator.ValidationResult;
 import org.hormigas.ws.domain.validator.Validator;
 import org.hormigas.ws.infrastructure.websocket.inbound.InboundPublisher;
 import org.hormigas.ws.infrastructure.websocket.utils.WebSocketUtils;
@@ -72,8 +73,9 @@ public class WebsocketService {
                 log.warn("Message (id={}): {} filtered out", message.getMessageId(), message);
                 return Uni.createFrom().voidItem();
             }
-            if (!validator.valid(message)) {
-                log.warn("Invalid message (id={}): {}", message.getMessageId(), message);
+            ValidationResult validated = validator.validate(message);
+            if (!validated.isValid()) {
+                log.warn("Invalid message (id={}): {}", message.getMessageId(), validated.errors());
                 return Uni.createFrom().voidItem();
             }
             coordinator.active(connection);
