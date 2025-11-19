@@ -13,13 +13,13 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-class MessageMappersTest {
+class MessageMapperTest {
 
-    private MessageMappers mapper;
+    private MessageMapper mapper;
 
     @BeforeEach
     void setup() {
-        mapper = new MessageMappers();
+        mapper = new MessageMapper();
         mapper.mapper = new ObjectMapper(); // Внедряем ObjectMapper вручную для теста
     }
 

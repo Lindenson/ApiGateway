@@ -14,4 +14,5 @@ public interface PostgresOutbox {
     Uni<List<OutboxRow>> fetchBatchForProcessing(int batchSize, Duration leaseDuration);
     Uni<Integer> deleteProcessedByIds(List<String> ids);
     Uni<List<Inserted>> insertHistoryAndOutboxTransactional(List<HistoryRow> historyRows, List<OutboxMessage> outboxBatch);
+    Uni<Integer> deleteOlderThan(long idThreshold);
 }

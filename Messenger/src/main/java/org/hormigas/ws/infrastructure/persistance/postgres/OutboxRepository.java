@@ -208,6 +208,7 @@ public class OutboxRepository implements PostgresOutbox {
     // Deletes outbox rows when id is smaller than idThreshold specified.
     // This is a Garbage Collection final stage.
     // ----------------------------
+    @Override
     public Uni<Integer> deleteOlderThan(long idThreshold) {
         String sql = "DELETE FROM outbox WHERE id < $1";
         return client.preparedQuery(sql)

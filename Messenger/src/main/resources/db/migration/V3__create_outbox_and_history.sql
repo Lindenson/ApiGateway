@@ -2,12 +2,23 @@
 
 CREATE TABLE message_history (
                                  id BIGSERIAL PRIMARY KEY,
-                                 message_id VARCHAR(128) NOT NULL, -- original client messageId (string)
-                                 message_json JSONB NOT NULL,
-                                 created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+
+    -- core message fields (subset of domain Message)
+                                 message_id      VARCHAR(128) NOT NULL,
+                                 conversation_id VARCHAR(128) NOT NULL,
+                                 sender_id       VARCHAR(128) NOT NULL,
+                                 recipient_id    VARCHAR(128) NOT NULL,
+
+                                 payload_json    JSONB NOT NULL,
+    -- outbox control fields
+                                 created_at      TIMESTAMPTZ DEFAULT now() NOT NULL
 );
 
-CREATE INDEX idx_message_history_message_id ON message_history(message_id);
+CREATE INDEX idx_mh_conversation_id ON message_history(conversation_id);
+CREATE INDEX idx_mh_sender_id ON message_history(sender_id);
+CREATE INDEX idx_mh_recipient_id ON message_history(recipient_id);
+CREATE INDEX idx_mh_sender_recipient ON message_history(sender_id, recipient_id);
+
 
 CREATE TABLE outbox (
                         id BIGSERIAL PRIMARY KEY,
@@ -16,6 +27,7 @@ CREATE TABLE outbox (
                         type            VARCHAR(64) NOT NULL,
                         sender_id       VARCHAR(128) NOT NULL,
                         recipient_id    VARCHAR(128) NOT NULL,
+                        conversation_id VARCHAR(128) NOT NULL,
                         message_id      VARCHAR(128) NOT NULL,
                         correlation_id  VARCHAR(128),
                         sender_ts       BIGINT NOT NULL,
@@ -31,7 +43,5 @@ CREATE TABLE outbox (
                         processing_attempts INT DEFAULT 0 NOT NULL,
                         status          VARCHAR(32) DEFAULT 'PENDING' NOT NULL
 );
-
-CREATE INDEX idx_outbox_recipient_id ON outbox(recipient_id);
 CREATE INDEX idx_outbox_status_lease ON outbox(status, lease_until);
-CREATE INDEX idx_outbox_created_at ON outbox(created_at);
+CREATE INDEX idx_outbox_id ON outbox(id);

@@ -21,6 +21,7 @@ public class Message {
 
     String senderId;
     String recipientId;
+    String conversationId;
 
     String messageId;
     String correlationId;

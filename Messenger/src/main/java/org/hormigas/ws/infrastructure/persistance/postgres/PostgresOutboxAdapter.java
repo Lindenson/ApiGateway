@@ -8,7 +8,7 @@ import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.HistoryRow;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.OutboxMessage;
-import org.hormigas.ws.infrastructure.persistance.postgres.mappers.MessageMappers;
+import org.hormigas.ws.infrastructure.persistance.postgres.mappers.MessageMapper;
 import org.hormigas.ws.ports.outbox.OutboxManager;
 
 import java.util.List;
@@ -24,11 +24,12 @@ public class PostgresOutboxAdapter implements OutboxManager<Message> {
     OutboxRepository repo;
 
     @Inject
-    MessageMappers mapper;
+    MessageMapper mapper;
 
     @Override
     public Uni<StageStatus> save(Message message) {
         if (message == null) return Uni.createFrom().item(FAILED);
+
         OutboxMessage outboxMessage = mapper.toOutboxMessage(message);
         HistoryRow historyRow = mapper.toHistoryRow(message);
 

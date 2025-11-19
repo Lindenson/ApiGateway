@@ -2,6 +2,8 @@ package org.hormigas.ws.infrastructure.persistance.postgres.mappers;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.smallrye.common.constraint.NotNull;
+import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -16,7 +18,7 @@ import java.util.Map;
 
 @Slf4j
 @ApplicationScoped
-public class MessageMappers {
+public class MessageMapper implements OutboxMapper {
 
     @Inject
     ObjectMapper mapper;
@@ -31,8 +33,11 @@ public class MessageMappers {
      * Map domain Message -> OutboxMessage (what will be saved in outbox table)
      * We intentionally exclude creditsAvailable, sessionId, sequenceNumber.
      */
-    public OutboxMessage toOutboxMessage(Message msg) {
-        final String payloadJson = serialize(msg.getPayload());
+    @Override
+    @Nullable
+    public OutboxMessage toOutboxMessage(@Nullable Message msg) {
+        if (msg == null) return null;
+        final String payloadJson = msg.getPayload() == null? null : serialize(msg.getPayload());
         final String metaJson = msg.getMeta() == null ? null : serialize(msg.getMeta());
 
         long serverTs = msg.getServerTimestamp();
@@ -57,7 +62,10 @@ public class MessageMappers {
     /**
      * Map domain Message -> HistoryRow (full JSONB)
      */
-    public HistoryRow toHistoryRow(Message msg) {
+    @Override
+    @Nullable
+    public HistoryRow toHistoryRow(@Nullable Message msg) {
+        if (msg == null) return null;
         return new HistoryRow(
                 msg.getMessageId(),
                 serialize(msg),
@@ -69,7 +77,10 @@ public class MessageMappers {
     /**
      * Map OutboxRow -> domain Message (full JSONB)
      */
-    public Message toDomainMessage(OutboxRow outboxRow) {
+    @Override
+    @Nullable
+    public Message toDomainMessage(@Nullable OutboxRow outboxRow) {
+        if (outboxRow == null) return null;
         try {
             Message.Payload payload = deserializePayload(outboxRow.payloadJson());
             Map<String, String> meta = deserializeMeta(outboxRow.metaJson());
@@ -93,10 +104,26 @@ public class MessageMappers {
         }
     }
 
+    /**
+     * Map HistoryRow -> Message
+     */
+    @Nullable
+    @Override
+    public Message fromHistoryRow(@Nullable HistoryRow row) {
+        if (row == null) return null;
+
+        try {
+            return mapper.readValue(row.messageJson(), Message.class);
+        } catch (Exception e) {
+            log.error("Failed to map HistoryRow -> Message: {}", e.getMessage());
+            return null;
+        }
+    }
+
 
     // ===== Helper methods =====
-
-    private String serialize(Object value) {
+    @NotNull
+    private String serialize(@NotNull Object value) {
         try {
             return mapper.writeValueAsString(value);
         } catch (Exception e) {
@@ -104,11 +131,13 @@ public class MessageMappers {
         }
     }
 
-    private MessageType typeOrNull(String typeName) {
+    @Nullable
+    private MessageType typeOrNull(@Nullable String typeName) {
         return typeName == null ? null : MessageType.valueOf(typeName);
     }
 
-    private Message.Payload deserializePayload(String json) {
+    @Nullable
+    private Message.Payload deserializePayload(@Nullable String json) {
         if (json == null || json.isBlank()) return null;
         try {
             return mapper.readValue(json, Message.Payload.class);
@@ -117,7 +146,8 @@ public class MessageMappers {
         }
     }
 
-    private Map<String, String> deserializeMeta(String json) {
+    @Nullable
+    private Map<String, String> deserializeMeta(@Nullable String json) {
         if (json == null || json.isBlank()) return null;
         try {
             return mapper.readValue(json, META_TYPE_REF);
