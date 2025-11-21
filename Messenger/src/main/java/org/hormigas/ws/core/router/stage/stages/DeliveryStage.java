@@ -6,17 +6,16 @@ import jakarta.enterprise.context.ApplicationScoped;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessengerConfig;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.channel.DeliveryChannel;
 import org.hormigas.ws.ports.idempotency.IdempotencyManager;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.message.MessageType;
 
 import java.time.Duration;
 
-import static org.hormigas.ws.domain.stage.StageStatus.SKIPPED;
 
 @Slf4j
 @ApplicationScoped
@@ -40,9 +39,15 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
+        if (!ctx.getPersisted().isSuccess()) {
+            ctx.setDelivered(StageResult.skipped());
+            return Uni.createFrom().item(ctx);
+        }
+
         return canDeliver(ctx)
-                .flatMap(canDeliver -> canDeliver ? deliverWithRetry(ctx) : Uni.createFrom().item(SKIPPED))
-                .invoke(ctx::setDelivered)
+                .flatMap(canDeliver -> canDeliver ? deliverWithRetry(ctx)
+                        : Uni.createFrom().item(StageResult.<Message>skipped()))
+                .onItem().invoke(ctx::setDelivered)
                 .replaceWith(ctx)
                 .onFailure().invoke(ctx::setError)
                 .onFailure().recoverWithItem(ctx);
@@ -60,8 +65,8 @@ public class DeliveryStage implements PipelineStage<RouterContext<Message>> {
                 .map(inProgress -> !inProgress);
     }
 
-    private Uni<StageStatus> deliverWithRetry(RouterContext<Message> ctx) {
-        Uni<StageStatus> delivery = channel.deliver(ctx.getPayload());
+    private Uni<StageResult<Message>> deliverWithRetry(RouterContext<Message> ctx) {
+        Uni<StageResult<Message>> delivery = channel.deliver(ctx.getPayload());
         if (messengerConfig.channel().retry()) {
             return delivery.onFailure().retry()
                     .withBackOff(minBackoff, maxBackoff)

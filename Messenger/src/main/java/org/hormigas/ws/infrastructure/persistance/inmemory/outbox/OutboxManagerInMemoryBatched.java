@@ -6,10 +6,10 @@ import jakarta.annotation.PostConstruct;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.history.History;
 import org.hormigas.ws.ports.outbox.OutboxManager;
-import org.hormigas.ws.domain.stage.StageStatus;
-import org.hormigas.ws.domain.message.Message;
 
 import java.util.List;
 import java.util.function.Predicate;
@@ -33,13 +33,13 @@ public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
     OutboxBatchBuffer batchBuffer = new OutboxBatchBuffer(delegate);
 
     @Override
-    public Uni<StageStatus> save(Message message) {
+    public Uni<StageResult<Message>> save(Message message) {
         messageHistory.addBySenderId(message.getRecipientId(), message);
         return delegate.save(message);
     }
 
     @Override
-    public Uni<StageStatus> remove(Message message) {
+    public Uni<StageResult<Message>> remove(Message message) {
         return Uni.createFrom().item(batchBuffer.add(message));
     }
 
@@ -54,7 +54,7 @@ public class OutboxManagerInMemoryBatched implements OutboxManager<Message> {
     }
 
     @Override
-    public Uni<Long> collectGarbage(Predicate<Message> predicate) {
-        return delegate.collectGarbage(predicate);
+    public Uni<Integer> collectGarbage(Long from) {
+        return delegate.collectGarbage(from);
     }
 }

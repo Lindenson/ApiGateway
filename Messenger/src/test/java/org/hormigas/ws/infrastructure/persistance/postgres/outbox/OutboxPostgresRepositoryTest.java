@@ -1,4 +1,4 @@
-package org.hormigas.ws.infrastructure.persistance.postgres;
+package org.hormigas.ws.infrastructure.persistance.postgres.outbox;
 
 import io.quarkus.test.junit.QuarkusTest;
 import io.vertx.mutiny.pgclient.PgPool;
@@ -7,7 +7,6 @@ import org.hormigas.ws.domain.generator.IdGenerator;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.HistoryRow;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.Inserted;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.OutboxMessage;
-import org.hormigas.ws.infrastructure.persistance.postgres.outbox.OutboxPostgresRepository;
 import org.junit.jupiter.api.*;
 
 import java.time.Duration;
@@ -41,7 +40,10 @@ public class OutboxPostgresRepositoryTest {
                     payload_json JSONB NOT NULL,
                     created_at TIMESTAMPTZ DEFAULT now() NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_message_history_message_id ON message_history(message_id);
+                CREATE INDEX idx_mh_conversation_id ON message_history(conversation_id);
+                CREATE INDEX idx_mh_sender_id ON message_history(sender_id);
+                CREATE INDEX idx_mh_recipient_id ON message_history(recipient_id);
+                CREATE INDEX idx_mh_sender_recipient ON message_history(sender_id, recipient_id);
                 CREATE TABLE IF NOT EXISTS outbox (
                     id BIGSERIAL PRIMARY KEY,
                     type VARCHAR(64) NOT NULL,
@@ -56,13 +58,10 @@ public class OutboxPostgresRepositoryTest {
                     payload_json JSONB NOT NULL,
                     meta_json JSONB,
                     created_at TIMESTAMPTZ DEFAULT now() NOT NULL,
-                    lease_until TIMESTAMPTZ,
-                    processing_attempts INT DEFAULT 0 NOT NULL,
-                    status VARCHAR(32) DEFAULT 'PENDING' NOT NULL
+                    lease_until TIMESTAMPTZ DEFAULT now() NOT NULL,
+                    processing_attempts INT DEFAULT 0 NOT NULL
                 );
-                CREATE INDEX IF NOT EXISTS idx_outbox_recipient_id ON outbox(recipient_id);
-                CREATE INDEX IF NOT EXISTS idx_outbox_status_lease ON outbox(status, lease_until);
-                CREATE INDEX IF NOT EXISTS idx_outbox_created_at ON outbox(created_at);
+                CREATE INDEX IF NOT EXISTS idx_outbox_id_lease ON outbox(id, lease_until);
                 """).execute().await().indefinitely();
     }
 
@@ -120,7 +119,6 @@ public class OutboxPostgresRepositoryTest {
                 sample(s, r, conversationId, 2),
                 sample(s, r, conversationId, 3)
         )).await().indefinitely();
-
         var batch = repo.fetchBatchForProcessing(2, Duration.ofSeconds(5)).await().indefinitely();
         assertEquals(2, batch.size());
         assertTrue(batch.get(0).leaseUntil().isAfter(Instant.now()));
@@ -158,7 +156,6 @@ public class OutboxPostgresRepositoryTest {
         String r = "recipient4";
 
         repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
-
         var batch1 = repo.fetchBatchForProcessing(10, Duration.ofSeconds(5)).await().indefinitely();
         assertEquals(1, batch1.size());
 
@@ -179,21 +176,6 @@ public class OutboxPostgresRepositoryTest {
                 .execute().await().indefinitely()
                 .iterator().next();
         assertEquals(1, row.getInteger("processing_attempts"));
-    }
-
-    @Test
-    public void testStatusUpdatedToProcessing() {
-        String conversationId = "conv-6";
-        String s = "sender6";
-        String r = "recipient6";
-
-        repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
-        repo.fetchBatchForProcessing(10, Duration.ofSeconds(5)).await().indefinitely();
-
-        var row = client.query("SELECT status FROM outbox LIMIT 1")
-                .execute().await().indefinitely()
-                .iterator().next();
-        assertEquals("PROCESSING", row.getString("status"));
     }
 
     @Test
@@ -253,5 +235,48 @@ public class OutboxPostgresRepositoryTest {
                 .execute().await().indefinitely()
                 .iterator().next().getLong("id");
         assertEquals(3L, remainingId);
+    }
+
+    @Test
+    public void testLeaseUntilIsExtendedCorrectly() {
+        String conversationId = "conv-lease-1";
+        var s = "senderL1";
+        var r = "recipientL1";
+
+        List<Inserted> inserted = repo.insertOutboxBatch(List.of(sample(s, r, conversationId, 1))).await().indefinitely();
+        assertEquals(1, inserted.size());
+
+        // Capture start time
+        Instant before = Instant.now();
+        var batch = repo.fetchBatchForProcessing(1, Duration.ofSeconds(1)).await().indefinitely();
+        assertEquals(1, batch.size());
+        delay(50);
+        batch = repo.fetchBatchForProcessing(1, Duration.ofSeconds(1)).await().indefinitely();
+        assertEquals(0, batch.size());
+        delay(1000);
+        batch = repo.fetchBatchForProcessing(1, Duration.ofSeconds(1)).await().indefinitely();
+
+        assertEquals(1, batch.size());
+        Instant lease = batch.get(0).leaseUntil();
+
+        Instant after = Instant.now();
+
+        // lease_until must be in [before + 5, after + 5]
+        assertTrue(
+                !lease.isBefore(before.plusSeconds(1)) &&
+                        !lease.isAfter(after.plusSeconds(1)),
+                "lease_until should be = now() + 1 seconds"
+        );
+    }
+
+
+
+    private static void delay(int x) {
+        try {
+            Thread.sleep(x);
+        }
+        catch (InterruptedException e) {
+            //
+        }
     }
 }

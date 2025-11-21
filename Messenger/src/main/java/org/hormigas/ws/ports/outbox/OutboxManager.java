@@ -1,15 +1,14 @@
 package org.hormigas.ws.ports.outbox;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 
 import java.util.List;
-import java.util.function.Predicate;
 
 public interface OutboxManager<T> {
-    Uni<StageStatus> save(T message);
-    Uni<StageStatus> remove(T message);
+    Uni<StageResult<T>> save(T message);
+    Uni<StageResult<T>> remove(T message);
     Uni<T> fetch();
     Uni<List<T>> fetchBatch(int batchSize);
-    Uni<Long> collectGarbage(Predicate<T> filter);
+    Uni<Integer> collectGarbage(Long from);
 }

@@ -1,8 +1,11 @@
 package org.hormigas.ws.infrastructure.cache.inmemory.tetris;
 
 import io.smallrye.mutiny.Uni;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.tetris.TetrisMarker;
 
+import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,7 +20,7 @@ import java.util.concurrent.locks.ReentrantLock;
  * Messages acknowledged out-of-order are tracked in a TreeSet. Disconnected recipients advance the pointer to
  * mark all messages sent before disconnect as safe to delete.
  */
-public class TetrisMarkerService implements TetrisMarker {
+public class TetrisMarkerService implements TetrisMarker<Message> {
 
     /**
      * Mapping from recipient UUID to their current state.
@@ -31,10 +34,10 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param id          the sent message ID
      */
     @Override
-    public Uni<Void> onSent(String recipientId, long id) {
-        map.computeIfAbsent(recipientId, k -> new RecipientState())
-                .onSent(id);
-        return Uni.createFrom().voidItem();
+    public Uni<StageResult<Message>> onSent(Message message) {
+        map.computeIfAbsent(message.getRecipientId(), k -> new RecipientState())
+                .onSent(message.getAckId());
+        return Uni.createFrom().item(StageResult.passed());
     }
 
     /**
@@ -44,10 +47,10 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param id          the acknowledged message ID
      */
     @Override
-    public Uni<Void> onAck(String recipientId, long id) {
-        RecipientState s = map.get(recipientId);
-        if (s != null) s.onAck(id);
-        return Uni.createFrom().voidItem();
+    public Uni<StageResult<Message>> onAck(Message message) {
+        RecipientState s = map.get(message.getRecipientId());
+        if (s != null) s.onAck(message.getAckId());
+        return Uni.createFrom().item(StageResult.passed());
     }
 
     /**
@@ -57,10 +60,10 @@ public class TetrisMarkerService implements TetrisMarker {
      * @param recipientId the recipient's UUID
      */
     @Override
-    public Uni<Void> onDisconnect(String recipientId) {
+    public Uni<StageResult<Message>> onDisconnect(String recipientId) {
         RecipientState s = map.get(recipientId);
         if (s != null) s.onDisconnect();
-        return Uni.createFrom().voidItem();
+        return Uni.createFrom().item(StageResult.passed());
     }
 
     /**
@@ -80,6 +83,11 @@ public class TetrisMarkerService implements TetrisMarker {
             if (safe < global) global = safe;
         }
         return Uni.createFrom().item(haveAny ? global : 0L);
+    }
+
+    @Override
+    public Uni<List<String>> findHeavyClients(int threshold, int limit) {
+        return Uni.createFrom().item(List.of());
     }
 
     /**

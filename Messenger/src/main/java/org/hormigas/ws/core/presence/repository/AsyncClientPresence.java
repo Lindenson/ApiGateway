@@ -8,7 +8,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.presence.AsyncPresence;
 import org.hormigas.ws.core.presence.Presence;
 import org.hormigas.ws.core.watermark.LeaveStamp;
+import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.ports.presence.PresenceManager;
+import org.hormigas.ws.ports.tetris.TetrisMarker;
 
 @Slf4j
 @ApplicationScoped
@@ -18,6 +20,9 @@ public class AsyncClientPresence implements AsyncPresence {
 
     @Inject
     PresenceManager presenceManager;
+
+    @Inject
+    TetrisMarker<Message> tetrisMarker;
 
     @Inject
     LeaveStamp leaveStamp;
@@ -37,9 +42,13 @@ public class AsyncClientPresence implements AsyncPresence {
                 );
     }
 
+
+    //toDO
     @Override
     public void remove(String userId, long timestamp) {
-        delegate.remove(userId, timestamp)
+        tetrisMarker.onDisconnect(userId)
+                .onItem().call(() ->
+        delegate.remove(userId, timestamp))
                 .runSubscriptionOn(Infrastructure.getDefaultExecutor())
                 .subscribe().with(
                         ignored -> log.debug("Client {} removed to presence", userId),

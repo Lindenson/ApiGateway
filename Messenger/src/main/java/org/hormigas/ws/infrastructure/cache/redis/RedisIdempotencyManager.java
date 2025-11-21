@@ -11,7 +11,7 @@ import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.domain.message.Message;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.idempotency.IdempotencyManager;
 
 import java.time.Instant;
@@ -46,21 +46,21 @@ public class RedisIdempotencyManager implements IdempotencyManager<Message> {
     }
 
     @Override
-    public Uni<StageStatus> add(Message message) {
+    public Uni<StageResult<Message>> add(Message message) {
         log.debug("Adding message {}", message);
         return valueCommand.setex(messageKey(message), TTL_SECONDS, DUMMY_VALUE)
-                .map(ignored -> StageStatus.SUCCESS)
+                .map(ignored -> StageResult.<Message>passed())
                 .onFailure().invoke(ignored -> log.error("Error while adding message {}", message))
-                .onFailure().recoverWithItem(StageStatus.FAILED);
+                .onFailure().recoverWithItem(StageResult.failed());
     }
 
     @Override
-    public Uni<StageStatus> remove(Message message) {
+    public Uni<StageResult<Message>> remove(Message message) {
         log.debug("Removing message {}", message);
         return keyCommands.del(messageKey(message))
-                .map(count -> count > 0 ? StageStatus.SUCCESS : StageStatus.SKIPPED)
+                .map(count -> count > 0 ? StageResult.<Message>passed() : StageResult.<Message>skipped())
                 .onFailure().invoke(ignored -> log.error("Error while removing message {}", message))
-                .onFailure().recoverWithItem(StageStatus.FAILED);
+                .onFailure().recoverWithItem(StageResult.failed());
     }
 
     @Override

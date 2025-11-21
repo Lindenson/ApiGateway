@@ -9,7 +9,7 @@ import io.quarkus.redis.datasource.value.ReactiveValueCommands;
 import jakarta.inject.Inject;
 import org.hormigas.ws.config.MessengerConfig;
 import org.hormigas.ws.domain.message.Message;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -58,8 +58,8 @@ public class RedisIdempotencyTest {
         UUID m = UUID.randomUUID();
         Message msg = newMsg(r, m);
 
-        StageStatus result = manager.add(msg).await().indefinitely();
-        assertEquals(StageStatus.SUCCESS, result);
+        StageResult<Message> result = manager.add(msg).await().indefinitely();
+        assertTrue(result.isSuccess());
 
         Boolean exists = keys.exists("receiver:" + r + ":message:" + m).await().indefinitely();
         assertTrue(exists);
@@ -85,8 +85,8 @@ public class RedisIdempotencyTest {
 
         manager.add(msg).await().indefinitely();
 
-        StageStatus removed = manager.remove(msg).await().indefinitely();
-        assertEquals(StageStatus.SUCCESS, removed);
+        StageResult<Message>  removed = manager.remove(msg).await().indefinitely();
+        assertTrue(removed.isSuccess());
 
         Boolean exists = keys.exists("receiver:" + r + ":message:" + m).await().indefinitely();
         assertFalse(exists);
@@ -98,8 +98,8 @@ public class RedisIdempotencyTest {
         UUID m = UUID.randomUUID();
         Message msg = newMsg(r, m);
 
-        StageStatus removed = manager.remove(msg).await().indefinitely();
-        assertEquals(StageStatus.SKIPPED, removed);
+        StageResult<Message>  removed = manager.remove(msg).await().indefinitely();
+        assertTrue(removed.isSkipped());
     }
 
     // -------------------------------------------------------
@@ -192,8 +192,8 @@ public class RedisIdempotencyTest {
         Boolean inProgressBefore = manager.isInProgress(msg).await().indefinitely();
         assertFalse(inProgressBefore);
 
-        StageStatus added = manager.add(msg).await().indefinitely();
-        assertEquals(StageStatus.SUCCESS, added);
+        StageResult<Message>  added = manager.add(msg).await().indefinitely();
+        assertTrue(added.isSuccess());
 
         Boolean inProgressAfter = manager.isInProgress(msg).await().indefinitely();
         assertTrue(inProgressAfter);
@@ -213,7 +213,7 @@ public class RedisIdempotencyTest {
         UUID m = UUID.randomUUID();
         Message msg = newMsg(r, m);
 
-        StageStatus st = manager.add(msg).await().indefinitely();
+        StageResult<Message>  st = manager.add(msg).await().indefinitely();
         assertNotNull(st);
     }
 
@@ -227,8 +227,8 @@ public class RedisIdempotencyTest {
         UUID m = UUID.randomUUID();
         Message msg = newMsg(r, m);
 
-        StageStatus st = manager.remove(msg).await().indefinitely();
-        assertEquals(StageStatus.SKIPPED, st);
+        StageResult<Message>  st = manager.remove(msg).await().indefinitely();
+        assertTrue(st.isSkipped());
     }
 
     @Test

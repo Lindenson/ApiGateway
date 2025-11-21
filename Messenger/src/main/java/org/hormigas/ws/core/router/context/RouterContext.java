@@ -5,21 +5,19 @@ import lombok.Data;
 import lombok.Getter;
 import lombok.With;
 import org.hormigas.ws.core.router.PipelineResolver;
-import org.hormigas.ws.domain.stage.StageStatus;
-
-import static org.hormigas.ws.domain.stage.StageStatus.UNKNOWN;
+import org.hormigas.ws.domain.stage.StageResult;
 
 @Data
 @Builder
 public class RouterContext<T> {
     @Builder.Default
-    private StageStatus delivered = UNKNOWN;
+    private StageResult<T> delivered = StageResult.unknown();
     @Builder.Default
-    private StageStatus persisted = UNKNOWN;
+    private StageResult<T> persisted = StageResult.unknown();
     @Builder.Default
-    private StageStatus cached = UNKNOWN;
+    private StageResult<T> cached = StageResult.unknown();
     @Builder.Default
-    private StageStatus acknowledged = UNKNOWN;
+    private StageResult<T> acknowledged = StageResult.unknown();
     @Builder.Default
     private boolean done = false;
 

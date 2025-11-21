@@ -1,10 +1,10 @@
 package org.hormigas.ws.ports.idempotency;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 
 public interface IdempotencyManager<T> {
-    Uni<StageStatus> add(T id);
-    Uni<StageStatus> remove(T id);
+    Uni<StageResult<T>> add(T id);
+    Uni<StageResult<T>> remove(T id);
     Uni<Boolean> isInProgress(T id);
 }

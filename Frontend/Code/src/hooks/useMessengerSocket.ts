@@ -59,6 +59,7 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
         const senderTimestamp = Date.now();
 
         const msg: ServerMessage = {
+            id: -1,
             messageId: msgId,
             senderId: currentUserId,
             recipientId,
@@ -185,12 +186,16 @@ export const useMessengerSocket = (token?: string, currentUserId?: string) => {
                 // --- Send ACK ---
                 if (data.recipientId === currentUserId && wsRef.current) {
                     wsRef.current.send(JSON.stringify({
+                        id: -1,
                         messageId: crypto.randomUUID(),
                         correlationId: data.messageId,
+                        ackId: data.id,
                         type: 'CHAT_ACK',
                         senderId: data.recipientId,
                         recipientId: data.senderId,
                         senderTimestamp: Date.now(),
+                        senderTimezone: 'Europe/Madrid',
+                        conversationId: data.conversationId,
                         payload: { kind: 'text', body: `Ack for message ${data.messageId}` },
                     }));
                 }

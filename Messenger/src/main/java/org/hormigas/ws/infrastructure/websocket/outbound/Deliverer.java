@@ -5,8 +5,8 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.channel.DeliveryChannel;
-import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.ports.session.SessionRegistry;
 import org.hormigas.ws.domain.session.ClientSession;
@@ -16,8 +16,7 @@ import org.hormigas.ws.infrastructure.websocket.utils.WebSocketUtils;
 
 import java.util.Optional;
 
-import static org.hormigas.ws.domain.stage.StageStatus.FAILED;
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
+
 import static org.hormigas.ws.infrastructure.websocket.coordinator.event.PresenceEventFactory.BROADCAST;
 
 @Slf4j
@@ -36,12 +35,12 @@ public class Deliverer implements DeliveryChannel<Message> {
     @Inject
     Coordinator<WebSocketConnection> coordinator;
 
-    public Uni<StageStatus> deliver(Message message) {
+    public Uni<StageResult<Message>> deliver(Message message) {
         if (BROADCAST.equals(message.getRecipientId())) {
             return sendBroadcast(message)
-                    .replaceWith(SUCCESS)
+                    .replaceWith(StageResult.<Message>passed())
                     .onItem().invoke(() -> log.debug("Broadcast delivered {}", message.getMessageId()))
-                    .onFailure().recoverWithItem(FAILED);
+                    .onFailure().recoverWithItem(StageResult.passed());
         }
 
         // not transforming broadcast
@@ -52,14 +51,14 @@ public class Deliverer implements DeliveryChannel<Message> {
         if (unis.isEmpty()) {
             log.info("No active sessions for recipient {}", message.getRecipientId());
             coordinator.passive(message.getRecipientId());
-            return Uni.createFrom().item(StageStatus.SKIPPED);
+            return Uni.createFrom().item(StageResult.skipped());
         }
 
         return Uni.combine().all().unis(unis)
                 .discardItems()
-                .replaceWith(SUCCESS)
+                .replaceWith(StageResult.<Message>passed())
                 .onItem().invoke(() -> log.debug("Delivered {}", message.getMessageId()))
-                .onFailure().recoverWithItem(FAILED);
+                .onFailure().recoverWithItem(StageResult.failed());
     }
 
 

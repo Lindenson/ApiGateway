@@ -5,10 +5,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.presence.AsyncPresence;
-import org.hormigas.ws.domain.session.ClientSession;
+import org.hormigas.ws.domain.credentials.ClientData;
 import org.hormigas.ws.ports.notifier.Coordinator;
 import org.hormigas.ws.ports.session.SessionRegistry;
-import org.hormigas.ws.domain.credentials.ClientData;
 
 import java.util.Optional;
 

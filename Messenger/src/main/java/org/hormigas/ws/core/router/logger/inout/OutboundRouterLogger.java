@@ -4,8 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.logger.RouterLogger;
 import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @Slf4j
 public class OutboundRouterLogger implements RouterLogger<Message> {
@@ -35,8 +35,8 @@ public class OutboundRouterLogger implements RouterLogger<Message> {
         log.debug("Outbound message {} processed successfully via {}", messageId, ctx.getPipelineType());
     }
 
-    private void logStage(Enum<?> status, String messageId, String operation) {
-        if (!SUCCESS.equals(status)) {
+    private void logStage(StageResult<?> stageResult, String messageId, String operation) {
+        if (!stageResult.isSuccess()) {
             log.debug("Outbound message {} was not {}", messageId, operation);
         }
     }

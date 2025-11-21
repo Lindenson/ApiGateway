@@ -23,11 +23,13 @@ public class MessageInboundRouter implements InboundRouter<Message> {
     private final OutboxStage outboxStage;
     private final DeliveryStage deliveryStage;
     private final AckStage ackStage;
-    private final CleanOutboxStage cleanOutboxStage;
     private final CleanCacheStage cleanCacheStage;
     private final CacheStage cacheStage;
     private final FinalStage finalStage;
     private final InboundPrototype prototype;
+    private final TetrisSentStage tetrisSentStage;
+    private final TetrisAckStage tetrisAckStage;
+
 
     private final RouterLogger<Message> logger = new InboundRouterLogger();
 
@@ -43,6 +45,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
                     .onItem().transformToUni(ackStage::apply)
                     .onItem().transformToUni(deliveryStage::apply)
                     .onItem().transformToUni(cacheStage::apply)
+                    .onItem().transformToUni(tetrisSentStage::apply)
                     .onItem().transformToUni(finalStage::apply);
 
             case INBOUND_CACHED -> deliveryStage.apply(context)
@@ -52,7 +55,7 @@ public class MessageInboundRouter implements InboundRouter<Message> {
             case INBOUND_DIRECT -> deliveryStage.apply(context)
                     .onItem().transformToUni(finalStage::apply);
 
-            case ACK_PERSISTENT -> cleanOutboxStage.apply(context)
+            case ACK_PERSISTENT -> tetrisAckStage.apply(context)
                     .onItem().transformToUni(cleanCacheStage::apply)
                     .onItem().transformToUni(finalStage::apply);
 

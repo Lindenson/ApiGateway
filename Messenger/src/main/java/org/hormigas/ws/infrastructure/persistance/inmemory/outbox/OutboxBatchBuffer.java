@@ -3,8 +3,8 @@ package org.hormigas.ws.infrastructure.persistance.inmemory.outbox;
 import io.smallrye.mutiny.Multi;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -15,8 +15,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.hormigas.ws.domain.stage.StageStatus.FAILED;
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @Slf4j
 public class OutboxBatchBuffer {
@@ -39,15 +37,15 @@ public class OutboxBatchBuffer {
         startAutoFlush();
     }
 
-    public StageStatus add(@Nullable Message msg) {
-        if (msg == null) return FAILED;
+    public StageResult<Message> add(@Nullable Message msg) {
+        if (msg == null) return StageResult.failed();
         if (!canBatch()) {
             outboxManager.remove(msg)
                     .subscribe().with(
                             ok -> log.debug("Directly removed {}", msg.getMessageId()),
                             err -> log.error("Direct remove failed", err)
                     );
-            return SUCCESS;
+            return StageResult.passed();
         }
 
         var queue = bufferRef.get();
@@ -57,7 +55,7 @@ public class OutboxBatchBuffer {
             flush();
         }
 
-        return SUCCESS;
+        return StageResult.passed();
     }
 
     public boolean canBatch() {

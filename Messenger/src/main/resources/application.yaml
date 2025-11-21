@@ -62,9 +62,9 @@
       outbound:
         batch-size: 1500
         queue-size: 5000
-        polling-ms: "800ms"
+        polling-ms: "1000ms"
       feedback:
-        additional-ms: 700 # for polling-ms
+        additional-ms: 1000 # for polling-ms
         adjustment-factor: 0.9
         recovery-factor: 1.05
       channel:

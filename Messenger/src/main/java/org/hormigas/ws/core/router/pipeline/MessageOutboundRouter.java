@@ -12,6 +12,7 @@ import org.hormigas.ws.core.router.logger.inout.OutboundRouterLogger;
 import org.hormigas.ws.core.router.stage.stages.CacheStage;
 import org.hormigas.ws.core.router.stage.stages.DeliveryStage;
 import org.hormigas.ws.core.router.stage.stages.FinalStage;
+import org.hormigas.ws.core.router.stage.stages.TetrisSentStage;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.message.MessageEnvelope;
 import org.hormigas.ws.domain.message.MessageType;
@@ -23,6 +24,7 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
 
     private final PipelineResolver<Message, MessageType> pipelineResolver;
     private final DeliveryStage deliveryStage;
+    private final TetrisSentStage tetrisSentStage;
     private final CacheStage cacheStage;
     private final FinalStage finalStage;
 
@@ -42,6 +44,7 @@ public class MessageOutboundRouter implements OutboundRouter<Message> {
         Uni<RouterContext<Message>> processed = switch (pipeline) {
             case OUTBOUND_CACHED -> deliveryStage.apply(context)
                     .onItem().transformToUni(cacheStage::apply)
+                    .onItem().transformToUni(tetrisSentStage::apply)
                     .onItem().transformToUni(finalStage::apply);
 
             case OUTBOUND_DIRECT -> deliveryStage.apply(context)

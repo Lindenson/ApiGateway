@@ -7,8 +7,6 @@ import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.domain.message.Message;
 
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
-
 
 @ApplicationScoped
 @RequiredArgsConstructor
@@ -27,18 +25,12 @@ public class FinalStage implements PipelineStage<RouterContext<Message>> {
             var pipelineType = ctx.getPipelineType();
 
             switch (pipelineType) {
-                case INBOUND_PERSISTENT ->
-                        done = ctx.getPersisted() == SUCCESS;
-                case INBOUND_CACHED ->
-                        done = ctx.getDelivered() == SUCCESS;
-                case OUTBOUND_CACHED, OUTBOUND_DIRECT ->
-                        done = ctx.getDelivered() == SUCCESS;
-                case ACK_PERSISTENT ->
-                        done = ctx.getPersisted() == SUCCESS;
-                case ACK_CACHED ->
-                        done = ctx.getCached() == SUCCESS;
-                default ->
-                        done = false;
+                case INBOUND_PERSISTENT -> done = ctx.getPersisted().isSuccess();
+                case INBOUND_CACHED -> done = ctx.getDelivered().isSuccess();
+                case OUTBOUND_CACHED, OUTBOUND_DIRECT -> done = ctx.getDelivered().isSuccess();
+                case ACK_PERSISTENT -> done = ctx.getAcknowledged().isSuccess();
+                case ACK_CACHED -> done = ctx.getCached().isSuccess();
+                default -> done = false;
             }
 
             ctx.setDone(done);

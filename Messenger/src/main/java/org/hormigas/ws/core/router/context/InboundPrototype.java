@@ -21,15 +21,16 @@ public class InboundPrototype {
         return RouterContext.<Message>builder()
                 .pipelineType(pipeline)
                 .payload(message.toBuilder()
-                        .type(resolveMessageType(message))
                         .messageId(idGenerator.generateId())
+                        .ackId(message.getAckId())
+                        .type(switchMesssageType(message))
                         .correlationId(message.getType() == CHAT_ACK? message.getCorrelationId(): message.getMessageId() )
                         .serverTimestamp(System.currentTimeMillis())
                         .build())
                 .build();
     }
 
-    private MessageType resolveMessageType(Message message) {
+    private MessageType switchMesssageType(Message message) {
         return switch (message.getType()) {
             case CHAT_IN -> CHAT_OUT;
             case SIGNAL_IN -> SIGNAL_OUT;

@@ -3,10 +3,7 @@ package org.hormigas.ws.domain.message;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonPOJOBuilder;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.NoArgsConstructor;
-import lombok.Value;
+import lombok.*;
 
 import java.util.Map;
 
@@ -17,6 +14,10 @@ import java.util.Map;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 @JsonDeserialize(builder = Message.MessageBuilder.class)
 public class Message {
+    @Builder.Default
+    @With
+    Long id = -1L;
+    Long ackId;
     MessageType type;
 
     String senderId;

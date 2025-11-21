@@ -1,8 +1,8 @@
 package org.hormigas.ws.ports.channel;
 
 import io.smallrye.mutiny.Uni;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 
 public interface DeliveryChannel<T> {
-    Uni<StageStatus> deliver(T message);
+    Uni<StageResult<T>> deliver(T message);
 }

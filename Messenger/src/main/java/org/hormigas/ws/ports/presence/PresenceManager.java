@@ -4,7 +4,7 @@ import io.smallrye.mutiny.Uni;
 import org.hormigas.ws.domain.presence.OnlineClient;
 
 import java.util.List;
-
+//toDO
 public interface PresenceManager {
     Uni<Void> add(String id, String name, long timestamp);
     Uni<Void> remove(String id, long timestamp);

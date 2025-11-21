@@ -6,10 +6,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
-import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.domain.generator.IdGenerator;
+import org.hormigas.ws.domain.message.Message;
 
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 import static org.hormigas.ws.domain.message.MessageType.CHAT_ACK;
 
 @Slf4j
@@ -22,22 +21,10 @@ public class AckStage implements PipelineStage<RouterContext<Message>> {
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-        if (ctx.getPersisted() == SUCCESS) {
+        if (ctx.getPersisted().isSuccess()) {
             Message ackMessage = createAck(ctx.getPayload());
-            RouterContext<Message> ackCtx = RouterContext.<Message>builder()
-                    .payload(ackMessage)
-                    .pipelineType(ctx.getPipelineType())
-                    .build();
-            return deliveryStage.apply(ackCtx)
+            return deliveryStage.apply(ctx.withPayload(ackMessage))
                     .onItem().invoke(ackResult -> ctx.setAcknowledged(ackResult.getAcknowledged()))
-                    .invoke(ackResult -> {
-
-                        if (ctx.getPayload().getPayload().getBody().equals("R")) {
-                            log.error("ACKED1!! {}", ctx.getPayload());
-                            log.error("ACKED2!! {}", ackCtx.getPayload());
-                        }
-
-                    })
                     .replaceWith(ctx);
         }
         return Uni.createFrom().item(ctx);

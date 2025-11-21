@@ -1,4 +1,4 @@
--- V3__create_outbox_and_history.sql
+-- V2__create_outbox_and_history.sql
 
 CREATE TABLE message_history (
                                  id BIGSERIAL PRIMARY KEY,
@@ -39,9 +39,7 @@ CREATE TABLE outbox (
 
     -- outbox control fields
                         created_at      TIMESTAMPTZ DEFAULT now() NOT NULL,
-                        lease_until     TIMESTAMPTZ,
-                        processing_attempts INT DEFAULT 0 NOT NULL,
-                        status          VARCHAR(32) DEFAULT 'PENDING' NOT NULL
+                        lease_until     TIMESTAMPTZ DEFAULT now() + interval '2 seconds' NOT NULL,
+                        processing_attempts INT DEFAULT 0 NOT NULL
 );
-CREATE INDEX idx_outbox_status_lease ON outbox(status, lease_until);
-CREATE INDEX idx_outbox_id ON outbox(id);
+CREATE INDEX idx_outbox_id_lease ON outbox(lease_until, id);

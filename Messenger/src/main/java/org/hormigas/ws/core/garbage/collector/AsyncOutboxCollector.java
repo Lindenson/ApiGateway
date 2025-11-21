@@ -10,6 +10,7 @@ import org.hormigas.ws.core.garbage.AsyncGarbageCollector;
 import org.hormigas.ws.core.garbage.GarbageCollector;
 import org.hormigas.ws.domain.message.Message;
 import org.hormigas.ws.ports.outbox.OutboxManager;
+import org.hormigas.ws.ports.tetris.TetrisMarker;
 import org.hormigas.ws.ports.watermark.WatermarksRegistry;
 
 @Slf4j
@@ -17,23 +18,17 @@ import org.hormigas.ws.ports.watermark.WatermarksRegistry;
 public class AsyncOutboxCollector implements AsyncGarbageCollector {
 
     @Inject
-    MessengerConfig messengerConfig;
-
-    @Inject
     OutboxManager<Message> outboxManager;
 
     @Inject
-    WatermarksRegistry watermarksRegistry;
+    TetrisMarker<Message> tetrisMarker;
 
 
     private GarbageCollector delegate;
 
     @PostConstruct
     void init() {
-        delegate = new OutboxGarbageCollector(messengerConfig.collector().maxWatermarks(),
-                outboxManager,
-                watermarksRegistry
-        );
+        delegate = new OutboxGarbageCollector(outboxManager, tetrisMarker);
     }
 
     @Override

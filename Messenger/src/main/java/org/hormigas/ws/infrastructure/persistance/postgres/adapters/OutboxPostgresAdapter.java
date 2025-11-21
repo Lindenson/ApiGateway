@@ -6,8 +6,9 @@ import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.domain.message.Message;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.HistoryRow;
+import org.hormigas.ws.infrastructure.persistance.postgres.dto.Inserted;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.OutboxMessage;
 import org.hormigas.ws.infrastructure.persistance.postgres.mappers.MessageMapper;
 import org.hormigas.ws.infrastructure.persistance.postgres.outbox.OutboxPostgresRepository;
@@ -16,58 +17,25 @@ import org.hormigas.ws.ports.outbox.OutboxManager;
 import java.time.Duration;
 import java.util.List;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Adapter layer between immutable domain {@link Message} and {@link OutboxPostgresRepository}.
  *
  * <p>
- * This class provides a safe, reactive bridge between domain messages and the
- * underlying PostgreSQL outbox repository. It maps messages to DTOs (OutboxMessage, HistoryRow)
- * via {@link MessageMapper} and delegates persistence and retrieval operations to the repository.
+ * This class provides a reactive bridge between domain messages and PostgreSQL outbox storage.
+ * It maps immutable {@link Message} to DTOs ({@link OutboxMessage}, {@link HistoryRow}) via {@link MessageMapper}
+ * and delegates persistence and retrieval operations to the repository.
  * </p>
  *
- * <p><b>Key responsibilities and behavior:</b></p>
+ * <p><b>Key behavior:</b></p>
  * <ul>
- *     <li>Filters out invalid or incomplete domain messages before persistence to avoid null pointers
- *         or database constraint violations.</li>
- *     <li>Maps immutable {@link Message} objects to database DTOs. Mapper methods may return null
- *         if required fields are missing.</li>
- *     <li>All persistence operations return {@link StageStatus} or reactive empty results;
- *         this class never returns null.</li>
- *     <li>Reactive methods ensure safe handling of empty fetch results:
- *         <ul>
- *             <li>{@link #fetch()} returns {@code Uni<Message>} with {@code null} if no messages are available
- *                 or if mapped message is invalid.</li>
- *             <li>{@link #fetchBatch(int)} returns an empty list if no messages are available,
- *                 filtering out any null or invalid messages.</li>
- *         </ul>
- *     </li>
- *     <li>Write operations ({@link #save(Message)}, {@link #remove(Message)}) return {@link StageStatus#FAILED}
- *         if the message is null, required fields are missing, or the mapper returned null.</li>
+ *     <li>Validates minimal required fields before persistence.</li>
+ *     <li>Filters out invalid messages on fetch (null payload, null domain object).</li>
+ *     <li>All write operations return a {@link StageResult} indicating success, failure, or skipped.</li>
+ *     <li>Reactive methods never throw exceptions; errors are mapped to {@link StageResult.StageStatus#FAILED} or empty results.</li>
+ *     <li>Domain messages are immutable; adapter does not mutate them, but returns updated instances with DB-generated ids.</li>
  * </ul>
- *
- * <p><b>Minimal validation rules:</b></p>
- * <ul>
- *     <li>For {@link #save(Message)}: message must be non-null, have non-null senderId, recipientId, messageId, and payload.</li>
- *     <li>For {@link #remove(Message)}: message must be non-null and correlationId must be non-null.</li>
- * </ul>
- *
- * <p><b>Important notes and potential risks:</b></p>
- * <ul>
- *     <li>Mapper methods may return null if critical fields are missing. This class handles such cases
- *         by returning {@link StageStatus#FAILED} for write operations or null/empty for fetch operations.</li>
- *     <li>No exceptions are thrown by the mapper; null outputs are treated as invalid messages.</li>
- *     <li>Repository-level errors (SQL exceptions, connection issues) are captured reactively and
- *         mapped to {@link StageStatus#FAILED} for write operations.</li>
- *     <li>Concurrent access is managed at the repository level (leases and batch processing).</li>
- *     <li>Domain messages are immutable; this adapter does not modify any fields.</li>
- * </ul>
- *
- * <p>
- * Overall, this adapter ensures that invalid messages or null outputs are safely filtered
- * for reactive downstream consumption, providing a consistent and fault-tolerant API
- * for the outbox system.
- * </p>
  */
 @Slf4j
 @ApplicationScoped
@@ -80,11 +48,14 @@ public class OutboxPostgresAdapter implements OutboxManager<Message> {
     @Inject
     MessageMapper mapper;
 
+    // ----------------------------------------------------------------------
+    // Save a message to outbox and history
+    // ----------------------------------------------------------------------
     @Override
-    public Uni<StageStatus> save(Message message) {
+    public Uni<StageResult<Message>> save(Message message) {
         if (!isValidForSave(message)) {
             log.warn("Message failed minimal validation and will not be saved: {}", message);
-            return Uni.createFrom().item(StageStatus.FAILED);
+            return Uni.createFrom().item(StageResult.failed());
         }
 
         OutboxMessage outboxMessage = mapper.toOutboxMessage(message);
@@ -92,50 +63,54 @@ public class OutboxPostgresAdapter implements OutboxManager<Message> {
 
         if (outboxMessage == null || historyRow == null) {
             log.warn("Mapper returned null for message, cannot save: {}", message);
-            return Uni.createFrom().item(StageStatus.FAILED);
+            return Uni.createFrom().item(StageResult.failed());
         }
 
         return repo.insertHistoryAndOutboxTransactional(
                         List.of(historyRow),
                         List.of(outboxMessage)
                 )
-                .onItem().transform(ids -> StageStatus.SUCCESS)
-                .replaceIfNullWith(StageStatus.FAILED)
+                .onItem().transform(inserted -> toStageResult(message, inserted))
                 .onFailure().recoverWithItem(er -> {
                     log.error("Error saving message: {}", message, er);
-                    return StageStatus.FAILED;
+                    return StageResult.failed();
                 });
     }
 
+    // ----------------------------------------------------------------------
+    // Remove a message by correlationId
+    // ----------------------------------------------------------------------
     @Override
-    public Uni<StageStatus> remove(Message message) {
+    public Uni<StageResult<Message>> remove(Message message) {
         if (message == null || message.getCorrelationId() == null) {
             log.warn("Cannot remove message; correlationId is null: {}", message);
-            return Uni.createFrom().item(StageStatus.FAILED);
+            return Uni.createFrom().item(StageResult.failed());
         }
 
         return repo.deleteProcessedByIds(List.of(message.getCorrelationId()))
-                .onItem().transform(rows -> StageStatus.SUCCESS)
-                .replaceIfNullWith(StageStatus.FAILED)
+                .onItem().transform(rows -> StageResult.updated(message))
                 .onFailure().recoverWithItem(er -> {
                     log.error("Error removing message: {}", message, er);
-                    return StageStatus.FAILED;
+                    return StageResult.failed();
                 });
     }
 
+    // ----------------------------------------------------------------------
+    // Fetch a single message from outbox
+    // ----------------------------------------------------------------------
     @Override
     public Uni<Message> fetch() {
         return repo.fetchBatchForProcessing(1, Duration.ofSeconds(5))
                 .onItem().transformToUni(batch -> {
-                    if (batch.isEmpty()) {
-                        return Uni.createFrom().item((Message) null);
-                    }
-                    Message msg = mapper.toDomainMessage(batch.get(0));
+                    if (batch.isEmpty()) return Uni.createFrom().nullItem();
+                    return Uni.createFrom().item(mapper.toDomainMessage(batch.get(0)));
+                })
+                .onItem().transform(msg -> {
                     if (msg == null || msg.getPayload() == null) {
-                        log.warn("Fetched message is invalid or has null payload: {}", msg);
-                        return Uni.createFrom().item((Message) null);
+                        log.warn("Fetched invalid message: {}", msg);
+                        return null;
                     }
-                    return Uni.createFrom().item(msg);
+                    return msg;
                 })
                 .onFailure().recoverWithItem(er -> {
                     log.error("Error fetching single message", er);
@@ -143,34 +118,51 @@ public class OutboxPostgresAdapter implements OutboxManager<Message> {
                 });
     }
 
+    // ----------------------------------------------------------------------
+    // Fetch batch of messages from outbox
+    // ----------------------------------------------------------------------
     @Override
     public Uni<List<Message>> fetchBatch(int batchSize) {
         return repo.fetchBatchForProcessing(batchSize, Duration.ofSeconds(5))
-                .onItem().transform(batch -> {
-                    if (batch.isEmpty()) return List.<Message>of();
-                    return batch.stream()
-                            .map(mapper::toDomainMessage)
-                            .filter(m -> m != null && m.getPayload() != null)
-                            .toList();
-                })
-                .replaceIfNullWith(List.<Message>of())
+                .onItem().transform(batch ->
+                        batch.stream()
+                                .map(mapper::toDomainMessage)
+                                .filter(m -> m != null && m.getPayload() != null)
+                                .collect(Collectors.toList())
+                )
                 .onFailure().recoverWithItem(er -> {
                     log.error("Error fetching batch of messages", er);
                     return List.of();
                 });
     }
 
+    // ----------------------------------------------------------------------
+    // Collect garbage (not implemented yet)
+    // ----------------------------------------------------------------------
     @Override
-    public Uni<Long> collectGarbage(Predicate<Message> filter) {
-        return Uni.createFrom().item(0L);
+    public Uni<Integer> collectGarbage(Long from) {
+        if (from == null || from <= 0) return Uni.createFrom().item(0);
+        return repo.deleteOlderThan(from);
     }
 
     // ----------------------------------------------------------------------
-    // Minimal internal validation for save
+    // Minimal validation for save
     // ----------------------------------------------------------------------
     private boolean isValidForSave(Message msg) {
-        if (msg == null) return false;
-        if (msg.getMessageId() == null || msg.getSenderId() == null || msg.getRecipientId() == null) return false;
-        return msg.getPayload() != null;
+        return msg != null
+                && msg.getMessageId() != null
+                && msg.getSenderId() != null
+                && msg.getRecipientId() != null
+                && msg.getPayload() != null;
+    }
+
+    // ----------------------------------------------------------------------
+    // Transform repository insertion result into StageResult
+    // ----------------------------------------------------------------------
+    private StageResult<Message> toStageResult(Message original, List<Inserted> inserted) {
+        if (inserted == null || inserted.size() != 1) return StageResult.failed();
+        Inserted updated = inserted.getFirst();
+        if (!updated.messageId().equals(original.getMessageId())) return StageResult.failed();
+        return StageResult.updated(original.withId(updated.id()));
     }
 }

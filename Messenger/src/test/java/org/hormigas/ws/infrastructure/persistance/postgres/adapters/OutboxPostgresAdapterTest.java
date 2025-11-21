@@ -2,8 +2,9 @@ package org.hormigas.ws.infrastructure.persistance.postgres.adapters;
 
 import io.smallrye.mutiny.Uni;
 import org.hormigas.ws.domain.message.Message;
-import org.hormigas.ws.domain.stage.StageStatus;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.HistoryRow;
+import org.hormigas.ws.infrastructure.persistance.postgres.dto.Inserted;
 import org.hormigas.ws.infrastructure.persistance.postgres.dto.OutboxMessage;
 import org.hormigas.ws.infrastructure.persistance.postgres.mappers.MessageMapper;
 import org.hormigas.ws.infrastructure.persistance.postgres.outbox.OutboxPostgresRepository;
@@ -12,8 +13,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -51,10 +51,10 @@ class OutboxPostgresAdapterTest {
         when(mapper.toOutboxMessage(validMessage)).thenReturn(mock(OutboxMessage.class));
         when(mapper.toHistoryRow(validMessage)).thenReturn(mock(HistoryRow.class));
         when(repo.insertHistoryAndOutboxTransactional(any(), any()))
-                .thenReturn(Uni.createFrom().item(List.of()));
+                .thenReturn(Uni.createFrom().item(List.of(new Inserted(1, "msg-1"))));
 
-        StageStatus status = adapter.save(validMessage).await().indefinitely();
-        assertEquals(StageStatus.SUCCESS, status);
+        StageResult<Message> status = adapter.save(validMessage).await().indefinitely();
+        assertTrue(status.isSuccess());
     }
 
     @Test
@@ -62,28 +62,28 @@ class OutboxPostgresAdapterTest {
         when(mapper.toOutboxMessage(validMessage)).thenReturn(null);
         when(mapper.toHistoryRow(validMessage)).thenReturn(null);
 
-        StageStatus status = adapter.save(validMessage).await().indefinitely();
-        assertEquals(StageStatus.FAILED, status);
+        StageResult<Message>  status = adapter.save(validMessage).await().indefinitely();
+        assertTrue(status.isFailed());
     }
 
     @Test
     void save_invalidMessage() {
-        StageStatus status = adapter.save(invalidMessage).await().indefinitely();
-        assertEquals(StageStatus.FAILED, status);
+        StageResult<Message> status = adapter.save(invalidMessage).await().indefinitely();
+        assertTrue(status.isFailed());
     }
 
     @Test
     void remove_successful() {
         when(repo.deleteProcessedByIds(any())).thenReturn(Uni.createFrom().item(1));
 
-        StageStatus status = adapter.remove(validMessage).await().indefinitely();
-        assertEquals(StageStatus.SUCCESS, status);
+        StageResult<Message> status = adapter.remove(validMessage).await().indefinitely();
+        assertTrue(status.isSuccess());
     }
 
     @Test
     void remove_nullMessage() {
-        StageStatus status = adapter.remove(null).await().indefinitely();
-        assertEquals(StageStatus.FAILED, status);
+        StageResult<Message> status = adapter.remove(null).await().indefinitely();
+        assertTrue(status.isFailed());
     }
 
     @Test
@@ -91,8 +91,8 @@ class OutboxPostgresAdapterTest {
         Message msg = mock(Message.class);
         when(msg.getCorrelationId()).thenReturn(null);
 
-        StageStatus status = adapter.remove(msg).await().indefinitely();
-        assertEquals(StageStatus.FAILED, status);
+        StageResult<Message> status = adapter.remove(msg).await().indefinitely();
+        assertTrue(status.isFailed());
     }
 
     @Test
@@ -140,7 +140,7 @@ class OutboxPostgresAdapterTest {
 
     @Test
     void collectGarbage_returnsZero() {
-        Long result = adapter.collectGarbage(m -> true).await().indefinitely();
-        assertEquals(0L, result);
+        Integer result = adapter.collectGarbage(1L).await().indefinitely();
+        assertEquals(0, result);
     }
 }

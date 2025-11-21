@@ -7,222 +7,211 @@ import io.vertx.mutiny.redis.client.RedisAPI;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.tetris.TetrisMarker;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Redis-backed implementation of Tetris pattern.
- * <p>
- * Keys used (for recipient UUID = {id}):
- * - tetris:recipient:{id}    -> HASH with fields: highestSentId, nextExpectedId, disconnectCutoffId
- * - tetris:recipient:{id}:acks-> ZSET of acked message ids (score = id, member = id)
- * - tetris:message:id:counter-> STRING counter for generating monotonic message ids
- */
 @Slf4j
 @ApplicationScoped
 @IfBuildProperty(name = "processing.messages.storage.service", stringValue = "redis")
-public class RedisTetrisMarker implements TetrisMarker {
+public class RedisTetrisMarker implements TetrisMarker<Message> {
 
-    private final static int BATCH_SIZE = 1000;
+    private static final String RECIPIENT_KEY_PREFIX = "tetris:re:";
+    private static final String ACKS_SUFFIX = ":ack";
+    private static final String GLOBAL_MIN_KEY = "tetris:minids";
+    private static final String COUNTS_KEY = "tetris:re:cnt";
 
     @Inject
-    RedisAPI lowLevelClient;
-
-    private static final String RECIPIENT_KEY_PREFIX = "tetris:recipient:"; // + {uuid}
-    private static final String ACKS_SUFFIX = ":acks";
-
+    RedisAPI redis;
 
     // ----------------------------
-    // onSent
+    // onSent: add messageId to per-client ZSET + increment counter
     // ----------------------------
     @Override
-    public Uni<Void> onSent(@NotNull String recipientId, long messageId) {
-        final String recipientKey = recipientKey(recipientId);
-        final String SCRIPT = """
-                -- ARGV[1] = key
-                -- ARGV[2] = msgId
-                local key = ARGV[1]
-                local msgId = tonumber(ARGV[2])
-                local highest = tonumber(redis.call('HGET', key, 'highestSentId') or '0')
-                local nextExpected = tonumber(redis.call('HGET', key, 'nextExpectedId') or '-1')
-                
-                if msgId > highest then
-                    highest = msgId
-                end
-                
-                if nextExpected == -1 then
-                    nextExpected = msgId
-                end
-                
-                redis.call('HSET', key, 'highestSentId', highest, 'nextExpectedId', nextExpected)
-                return nextExpected
-                """;
+    public Uni<StageResult<Message>> onSent(@NotNull Message message) {
+        String recipientId = message.getRecipientId();
+        long id = message.getId();
+        String perKey = recipientKey(recipientId) + ACKS_SUFFIX;
+        String globalKey = GLOBAL_MIN_KEY;
 
-        List<String> args = List.of(SCRIPT, "0", recipientKey, String.valueOf(messageId));
-        return lowLevelClient.eval(args)
-                .onFailure().invoke(er -> log.error("Error removing user {}", recipientKey, er))
-                .replaceWithVoid();
-    }
-
-    // ----------------------------
-    // onAck
-    // ----------------------------
-    @Override
-    public Uni<Void> onAck(@NotNull String recipientId, long messageId) {
-        final String recipientKey = recipientKey(recipientId);
-        final String ackKey = recipientKey + ACKS_SUFFIX;
-        final String SCRIPT = """
-                -- ARGV[1] = key
-                -- ARGV[2] = ackKey
-                -- ARGV[3] = msgId
-                local key = ARGV[1]
-                local ackKey = ARGV[2]
-                local msgId = tonumber(ARGV[3])
+        String lua = """
+                local per = ARGV[1]
+                local gmin = ARGV[2]
+                local counts = ARGV[3]
+                local msg = tonumber(ARGV[4])
+                local client = ARGV[5]
                 
-                local nextExpected = tonumber(redis.call('HGET', key, 'nextExpectedId') or '-1')
-                local cutoff = tonumber(redis.call('HGET', key, 'disconnectCutoffId') or '0')
+                -- Add to per-client ZSET
+                redis.call('ZADD', per, msg, tostring(msg))
                 
-                -- if we never sent anything to this recipient, ignore the ack
-                if nextExpected == -1 then
-                    return -1
-                end
+                -- Increment unacked counter
+                redis.call('HINCRBY', counts, client, 1)
                 
-                -- if ack is older than already advanced pointer, ignore
-                if msgId < nextExpected then
-                    return nextExpected
-                end
-                
-                -- record ack
-                redis.call('ZADD', ackKey, msgId, tostring(msgId))
-                
-                -- advance pointer while possible
-                while true do
-                    if nextExpected <= cutoff then
-                        -- remove potential ack for that id (cleanup) and advance
-                        redis.call('ZREM', ackKey, tostring(nextExpected))
-                        nextExpected = nextExpected + 1
+                -- Update global min
+                local minMember = redis.call('ZRANGE', per, 0, 0)
+                if minMember[1] then
+                    local safe = tonumber(minMember[1])
+                    if safe ~= 0 then
+                        redis.call('ZADD', gmin, safe, client)
                     else
-                        local found = redis.call('ZSCORE', ackKey, tostring(nextExpected))
-                        if found then
-                            redis.call('ZREM', ackKey, tostring(nextExpected))
-                            nextExpected = nextExpected + 1
-                        else
-                            break
-                        end
+                        redis.call('ZREM', gmin, client)
                     end
+                else
+                    redis.call('ZREM', gmin, client)
                 end
-                
-                redis.call('HSET', key, 'nextExpectedId', nextExpected)
-                return nextExpected
+                return 1
                 """;
 
-        List<String> args = List.of(SCRIPT, "0", recipientKey, ackKey, String.valueOf(messageId));
-        return lowLevelClient.eval(args).replaceWithVoid();
+        List<String> args = List.of(lua, "0", perKey, globalKey, COUNTS_KEY,
+                String.valueOf(id), recipientId);
+        return redis.eval(args)
+                .replaceWith(StageResult.<Message>passed())
+                .onFailure().invoke(err -> log.error("onSent failed recipient={} msg={} : {}", recipientId, id, err.getMessage(), err))
+                .onFailure().recoverWithItem(StageResult.failed());
     }
 
     // ----------------------------
-    // onDisconnect
+    // onAck: remove messageId + decrement counter
     // ----------------------------
     @Override
-    public Uni<Void> onDisconnect(String recipientId) {
-        final String recipientKey = recipientKey(recipientId);
-        final String ackKey = recipientKey + ACKS_SUFFIX;
-        final String SCRIPT = """
-                -- ARGV[1] = key
-                -- ARGV[2] = ackKey
-                local key = ARGV[1]
-                local ackKey = ARGV[2]
+    public Uni<StageResult<Message>> onAck(@NotNull Message message) {
+        String recipientId = message.getSenderId();
+        long id = message.getAckId();
+        String perKey = recipientKey(recipientId) + ACKS_SUFFIX;
+        String globalKey = GLOBAL_MIN_KEY;
+        log.error("DENYS! onAck recipient {} ack {}", recipientId, id);
+
+        String lua = """
+                local per = ARGV[1]
+                local gmin = ARGV[2]
+                local counts = ARGV[3]
+                local msg = tostring(ARGV[4])
+                local client = ARGV[5]
                 
-                local highest = tonumber(redis.call('HGET', key, 'highestSentId') or '0')
-                local cutoff = tonumber(redis.call('HGET', key, 'disconnectCutoffId') or '0')
-                local nextExpected = tonumber(redis.call('HGET', key, 'nextExpectedId') or '-1')
+                -- Remove acknowledged message
+                redis.call('ZREM', per, msg)
                 
-                if highest > cutoff then
-                    cutoff = highest
-                    redis.call('HSET', key, 'disconnectCutoffId', cutoff)
+                -- Decrement unacked counter (never below 0)
+                local cnt = redis.call('HINCRBY', counts, client, -1)
+                if cnt < 0 then redis.call('HSET', counts, client, 0) end
+                
+                -- Update global min
+                local minMember = redis.call('ZRANGE', per, 0, 0)
+                if minMember[1] then
+                    local safe = tonumber(minMember[1])
+                    if safe ~= 0 then
+                        redis.call('ZADD', gmin, safe, client)
+                    else
+                        redis.call('ZREM', gmin, client)
+                    end
+                else
+                    redis.call('ZREM', gmin, client)
                 end
-                
-                if nextExpected == -1 then
-                    -- nothing sent previously; just store cutoff (done above)
-                    return cutoff
-                end
-                
-                -- advance while nextExpected <= cutoff
-                while nextExpected <= cutoff do
-                    redis.call('ZREM', ackKey, tostring(nextExpected))
-                    nextExpected = nextExpected + 1
-                end
-                
-                redis.call('HSET', key, 'nextExpectedId', nextExpected)
-                return nextExpected
+                return 1
                 """;
 
-        List<String> args = List.of(SCRIPT, "0", recipientKey, ackKey);
-        return lowLevelClient.eval(args).replaceWithVoid();
+        List<String> args = List.of(lua, "0", perKey, globalKey, COUNTS_KEY,
+                String.valueOf(id), recipientId);
+        return redis.eval(args)
+                .replaceWith(StageResult.<Message>passed())
+                .onFailure().invoke(err -> log.error("onAck failed recipient={} msg={} : {}", recipientId, id, err.getMessage(), err))
+                .onFailure().recoverWithItem(StageResult.failed());
     }
 
     // ----------------------------
-    // computeGlobalSafeDeleteId
+    // onDisconnect: keep only MAX messageId, reset counter to 1
     // ----------------------------
+    @Override
+    public Uni<StageResult<Message>> onDisconnect(@NotNull String recipientId) {
+        String perKey = recipientKey(recipientId) + ACKS_SUFFIX;
+        String globalKey = GLOBAL_MIN_KEY;
 
-    /**
-     * Scan pattern tetris:recipient:* and compute min(nextExpectedId - 1).
-     * Returns 0 if none found.
-     */
+        String lua = """
+                local per = ARGV[1]
+                local gmin = ARGV[2]
+                local counts = ARGV[3]
+                local client = ARGV[4]
+                
+                local maxMember = redis.call('ZREVRANGE', per, 0, 0)
+                if maxMember[1] then
+                    local maxNum = tonumber(maxMember[1])
+                    -- Keep only MAX
+                    redis.call('ZREMRANGEBYRANK', per, 0, -2)
+                    -- Update counter to 1 if maxNum !=0
+                    if maxNum ~= 0 then
+                        redis.call('HSET', counts, client, 1)
+                        redis.call('ZADD', gmin, maxNum, client)
+                    else
+                        redis.call('HSET', counts, client, 0)
+                        redis.call('ZREM', gmin, client)
+                    end
+                else
+                    redis.call('HSET', counts, client, 0)
+                    redis.call('ZREM', gmin, client)
+                end
+                return 1
+                """;
+
+        List<String> args = List.of(lua, "0", perKey, globalKey, COUNTS_KEY, recipientId);
+        return redis.eval(args)
+                .replaceWith(StageResult.<Message>passed())
+                .onFailure().invoke(err -> log.error("onDisconnect failed recipient={} : {}", recipientId, err.getMessage(), err))
+                .onFailure().recoverWithItem(StageResult.failed());
+    }
+
+    // ----------------------------
+    // computeGlobalSafeDeleteId: as before
+    // ----------------------------
     @Override
     public Uni<Long> computeGlobalSafeDeleteId() {
-        final String SCRIPT = """
-                -- ARGV[1] = pattern
-                -- ARGV[2] = count (optional)
-                local pattern = ARGV[1]
-                local count = tonumber(ARGV[2]) or 100
-                local cursor = "0"
-                local global_min = nil
-                
-                repeat
-                    local res = redis.call("SCAN", cursor, "MATCH", pattern, "COUNT", count)
-                    cursor = res[1]
-                    local keys = res[2]
-                    for i = 1, #keys do
-                        local key = keys[i]
-                        if redis.call("TYPE", key).ok == "hash" then
-                            local nextExpected = tonumber(redis.call("HGET", key, "nextExpectedId") or "-1")
-                            if nextExpected ~= -1 then
-                                local safe = nextExpected - 1
-                                if global_min == nil or safe < global_min then
-                                    global_min = safe
-                                end
-                            end
-                        end
-                    end
-                until cursor == "0"
-                
-                if global_min == nil then
-                    return 0
-                else
-                    return global_min
-                end
+        String lua = """
+                local gmin = ARGV[1]
+                local vals = redis.call('ZRANGE', gmin, 0, 0, 'WITHSCORES')
+                if not vals or #vals == 0 then return -1 end
+                local score = tonumber(vals[2])
+                if score == 0 then return -1 end
+                return score
                 """;
 
-        List<String> args = List.of(SCRIPT, "0", "tetris:recipient:*", String.valueOf(BATCH_SIZE));
-        return lowLevelClient.eval(args)
+        List<String> args = List.of(lua, "0", GLOBAL_MIN_KEY);
+        return redis.eval(args)
                 .map(resp -> {
-                    if (resp == null) return 0L;
                     try {
-                        return resp.toLong();
+                        if (resp == null) return -1L;
+                        return Long.parseLong(resp.toString());
                     } catch (Exception e) {
-                        try {
-                            return Long.parseLong(resp.toString());
-                        } catch (Exception ex) {
-                            return 0L;
-                        }
+                        log.warn("computeGlobalSafeDeleteId parse error, returning -1", e);
+                        return -1L;
                     }
                 });
     }
 
     // ----------------------------
-    // helpers
+    // findHeavyClients: fast, via hash of counters
+    // ----------------------------
+    @Override
+    public Uni<List<String>> findHeavyClients(int threshold, int limit) {
+        return redis.hgetall(COUNTS_KEY)
+                .map(resp -> {
+                    List<String> heavy = new ArrayList<>();
+                    if (resp != null && !resp.getKeys().isEmpty()) {
+                        for (String key : resp.getKeys()) {
+                            long cnt = Long.parseLong(resp.get(key).toString());
+                            if (cnt >= threshold) {
+                                heavy.add(key);
+                                if (heavy.size() >= limit) break;
+                            }
+                        }
+                    }
+                    return heavy;
+                });
+    }
+
+    // ----------------------------
+    // Helper
     // ----------------------------
     private String recipientKey(String id) {
         return RECIPIENT_KEY_PREFIX + id;

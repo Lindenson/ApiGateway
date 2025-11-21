@@ -119,6 +119,19 @@ services:
     networks:
       - hormigas-net
 
+  redis-insite:
+    image: redis/redisinsight:latest
+    container_name: redis-insite
+    environment: 
+      RRI_REDIS_HOS: redis
+    ports:
+      - "5540:5540"
+    depends_on:
+      - redis
+    networks:
+      - hormigas-net
+
+
 networks:
    hormigas-net:
      driver: bridge

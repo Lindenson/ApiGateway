@@ -32,6 +32,8 @@ export interface ServerPayloadAck {
 export type ServerPayload = ServerPayloadChat | ServerPayloadAck;
 
 export interface ServerMessage {
+    id: number;
+    ackId?: number;
     messageId: string;
     correlationId?: string;
     senderId: string;
@@ -41,6 +43,7 @@ export interface ServerMessage {
     type: 'CHAT_IN' | 'CHAT_OUT' | 'CHAT_ACK' | 'PRESENT_INIT' | 'PRESENT_JOIN' | 'PRESENT_LEAVE';
     senderTimestamp: number;
     senderTimezone: string;
+    serverTimestamp?: number;
 }
 
 export type PresenceUser = { id: string; name?: string; };

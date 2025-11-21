@@ -2,26 +2,26 @@ package org.hormigas.ws.core.router.stage.stages;
 
 import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import lombok.RequiredArgsConstructor;
-import org.hormigas.ws.ports.outbox.OutboxManager;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.stage.PipelineStage;
 import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.ports.tetris.TetrisMarker;
+
 
 @ApplicationScoped
 @RequiredArgsConstructor
-public class OutboxStage implements PipelineStage<RouterContext<Message>> {
+public class TetrisAckStage implements PipelineStage<RouterContext<Message>> {
 
-    private final OutboxManager<Message> outboxManager;
+    @Inject
+    TetrisMarker<Message> tetrisMarker;
 
     @Override
     public Uni<RouterContext<Message>> apply(RouterContext<Message> ctx) {
-        return outboxManager.save(ctx.getPayload())
-                .onItem().transform(result -> {
-                    var updatedContext = result.isUpdated() ? ctx.withPayload(result.payload()) : ctx;
-                    updatedContext.setPersisted(result);
-                    return updatedContext;
-                })
+        return tetrisMarker.onAck(ctx.getPayload())
+                .onItem().invoke(ctx::setAcknowledged)
+                .replaceWith(ctx)
                 .onFailure().invoke(ctx::setError)
                 .onFailure().recoverWithItem(ctx);
     }

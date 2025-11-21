@@ -104,13 +104,11 @@ public class OutboxPostgresRepository implements OutboxRepository {
     public Uni<List<OutboxRow>> fetchBatchForProcessing(int batchSize, Duration leaseDuration) {
         if (batchSize <= 0) batchSize = 50;
 
-        long sec = Math.max(1, leaseDuration.getSeconds());
-        Interval interval = durationToPgInterval(Duration.ofSeconds(sec));
+        Interval interval = durationToPgIntervalStrict(leaseDuration);
 
         String selectSql = """
             SELECT id FROM outbox
-            WHERE (status = 'PENDING')
-            OR (status = 'PROCESSING' AND lease_until <= now())
+            WHERE lease_until <= now()
             ORDER BY id
             LIMIT $1
             FOR UPDATE SKIP LOCKED
@@ -119,8 +117,7 @@ public class OutboxPostgresRepository implements OutboxRepository {
         String updateSql = """
             UPDATE outbox
             SET lease_until = now() + ($1::interval),
-                processing_attempts = processing_attempts + 1,
-                status = 'PROCESSING'
+                processing_attempts = processing_attempts + 1
             WHERE id = ANY($2)
             RETURNING id, type,
                       sender_id, recipient_id, conversation_id, message_id,
@@ -322,20 +319,30 @@ public class OutboxPostgresRepository implements OutboxRepository {
                 });
     }
 
-
-    private static Interval durationToPgInterval(Duration d) {
-        long totalSeconds = Math.max(1, d.getSeconds());
-        int hours = (int) (totalSeconds / 3600);
-        int minutes = (int) ((totalSeconds % 3600) / 60);
-        int seconds = (int) (totalSeconds % 60);
-        return new Interval(hours, minutes, seconds, 0);
-    }
-
     private static Long[] toLongArray(List<Long> ids) {
         return ids.toArray(new Long[0]);
     }
 
     private static String[] toStringArray(List<String> ids) {
         return ids.toArray(new String[0]);
+    }
+
+    static Interval durationToPgIntervalStrict(Duration d) {
+        if (d == null) {
+            throw new IllegalArgumentException("leaseDuration must not be null");
+        }
+
+        Duration max = Duration.ofHours(24);
+        if (d.compareTo(max) > 0) {
+            throw new IllegalArgumentException("leaseDuration must be <= 24 hours");
+        }
+
+        if (d.isNegative() || d.isZero()) {
+            d = Duration.ofSeconds(1);
+        } else if (d.compareTo(Duration.ofSeconds(1)) < 0) {
+            d = Duration.ofSeconds(1);
+        }
+
+        return Interval.of(d);
     }
 }

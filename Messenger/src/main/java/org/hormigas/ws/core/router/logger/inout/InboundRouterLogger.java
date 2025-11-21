@@ -4,8 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.hormigas.ws.core.router.context.RouterContext;
 import org.hormigas.ws.core.router.logger.RouterLogger;
 import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
 
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 @Slf4j
 public class InboundRouterLogger implements RouterLogger<Message> {
@@ -54,8 +54,8 @@ public class InboundRouterLogger implements RouterLogger<Message> {
         logStage(ctx.getCached(), messageId, "cache cleaned");
     }
 
-    private void logStage(Enum<?> status, String messageId, String operation) {
-        if (!SUCCESS.equals(status)) {
+    private void logStage(StageResult<?> stageResult, String messageId, String operation) {
+        if (!stageResult.isSuccess()) {
             log.debug("Inbound message {} was not {}", messageId, operation);
         }
     }

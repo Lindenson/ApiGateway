@@ -206,8 +206,8 @@ public class TimeOrderedStringKeyMap<V> {
     }
 
 
-    public long collectGarbageOptimized(Predicate<V> toBeRemoved) {
-        long collected = 0;
+    public int collectGarbageOptimized(Predicate<V> toBeRemoved) {
+        int collected = 0;
         List<String> toRemove = map.entrySet().stream().filter(it -> toBeRemoved.test(it.getValue()))
                 .map(Map.Entry::getKey).toList();
         if (!toRemove.isEmpty()) {

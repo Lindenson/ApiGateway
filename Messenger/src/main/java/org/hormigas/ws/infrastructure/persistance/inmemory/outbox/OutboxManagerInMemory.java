@@ -3,14 +3,12 @@ package org.hormigas.ws.infrastructure.persistance.inmemory.outbox;
 import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import lombok.extern.slf4j.Slf4j;
-import org.hormigas.ws.ports.outbox.OutboxManager;
-import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
+import org.hormigas.ws.domain.stage.StageResult;
+import org.hormigas.ws.ports.outbox.OutboxManager;
 
 import java.util.List;
 import java.util.function.Predicate;
-
-import static org.hormigas.ws.domain.stage.StageStatus.*;
 
 
 @Slf4j
@@ -22,22 +20,22 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
 
 
     @Override
-    public Uni<StageStatus> save(@Nullable Message message) {
-        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
+    public Uni<StageResult<Message>> save(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(StageResult.failed());
 
         if (messages.size() > MAX_OUTBOX_SIZE) log.warn("TOO MUCH OUTBOX SIZE: {}", messages.size());
         log.debug("Saving message {}", message);
         return Uni.createFrom().item(messages.putIfAbsent(message.getMessageId(), message))
-                .onItem().transform(it -> it == null? SUCCESS : SKIPPED);
+                .onItem().transform(it -> it == null ? StageResult.passed() : StageResult.skipped());
     }
 
     @Override
-    public Uni<StageStatus> remove(@Nullable Message message) {
-        if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
+    public Uni<StageResult<Message>> remove(@Nullable Message message) {
+        if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(StageResult.failed());
 
         log.debug("Removing message {}", message);
         return Uni.createFrom().item(messages.remove(message.getCorrelationId()))
-                .onItem().transform(it -> it != null? SUCCESS : SKIPPED);
+                .onItem().transform(it -> it != null ? StageResult.passed() : StageResult.skipped());
     }
 
     @Override
@@ -61,9 +59,9 @@ public class OutboxManagerInMemory implements OutboxManager<Message> {
 
 
     @Override
-    public Uni<Long> collectGarbage(Predicate<Message> predicate) {
+    public Uni<Integer> collectGarbage(Long from) {
         return Uni.createFrom().item(() -> {
-            long collected = messages.collectGarbageOptimized(predicate);
+            int collected = messages.collectGarbageOptimized(it -> it.getId().equals(from));
             log.debug("Garbage collected {}", collected);
             return collected;
         });

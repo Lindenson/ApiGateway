@@ -5,12 +5,10 @@ import io.smallrye.mutiny.Uni;
 import jakarta.annotation.Nullable;
 import jakarta.enterprise.context.ApplicationScoped;
 import lombok.extern.slf4j.Slf4j;
+import org.hormigas.ws.domain.stage.StageResult;
 import org.hormigas.ws.ports.idempotency.IdempotencyManager;
-import org.hormigas.ws.domain.stage.StageStatus;
 import org.hormigas.ws.domain.message.Message;
 
-import static org.hormigas.ws.domain.stage.StageStatus.FAILED;
-import static org.hormigas.ws.domain.stage.StageStatus.SUCCESS;
 
 
 @Slf4j
@@ -27,21 +25,21 @@ public class IdempotencyManagerInMemory implements IdempotencyManager<Message> {
 
 
     @Override
-    public Uni<StageStatus> add(@Nullable Message message) {
-        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(FAILED);
+    public Uni<StageResult<Message>> add(@Nullable Message message) {
+        if (message == null || message.getMessageId() == null) return Uni.createFrom().item(StageResult.failed());
 
         log.debug("Adding message {}", message);
         return Uni.createFrom().item(messages.put(message.getMessageId(), Status.SENT))
-                .replaceWith(SUCCESS);
+                .replaceWith(StageResult.passed());
     }
 
     @Override
-    public Uni<StageStatus> remove(@Nullable Message message) {
-        if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(FAILED);
+    public Uni<StageResult<Message>> remove(@Nullable Message message) {
+        if (message == null || message.getCorrelationId() == null) return Uni.createFrom().item(StageResult.failed());
 
         log.debug("Removing message {}", message);
         return Uni.createFrom().item(messages.replace(message.getCorrelationId(), Status.ACK))
-                .replaceWith(SUCCESS);
+                .replaceWith(StageResult.passed());
     }
 
     @Override

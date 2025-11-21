@@ -3,5 +3,5 @@ package org.hormigas.ws.core.garbage;
 import io.smallrye.mutiny.Uni;
 
 public interface GarbageCollector {
-    Uni<Long> collect();
+    Uni<Integer> collect();
 }

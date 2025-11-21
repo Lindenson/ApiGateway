@@ -92,6 +92,7 @@ public class MessageMapper implements OutboxMapper {
             Map<String, String> meta = deserializeMeta(row.metaJson());
 
             return Message.builder()
+                    .id(row.id())
                     .type(typeOrNull(row.type()))
                     .senderId(row.senderId())
                     .recipientId(row.recipientId())
