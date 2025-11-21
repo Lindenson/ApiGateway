@@ -34,6 +34,7 @@ public class RedisTetrisMarker implements TetrisMarker<Message> {
     public Uni<StageResult<Message>> onSent(@NotNull Message message) {
         String recipientId = message.getRecipientId();
         long id = message.getId();
+        if (recipientId == null || id <=0 ) return Uni.createFrom().item(StageResult.failed());
         String perKey = recipientKey(recipientId) + ACKS_SUFFIX;
         String globalKey = GLOBAL_MIN_KEY;
 
@@ -78,11 +79,12 @@ public class RedisTetrisMarker implements TetrisMarker<Message> {
     // ----------------------------
     @Override
     public Uni<StageResult<Message>> onAck(@NotNull Message message) {
-        String recipientId = message.getSenderId();
+        String senderId = message.getSenderId();
         long id = message.getAckId();
-        String perKey = recipientKey(recipientId) + ACKS_SUFFIX;
+        if (senderId == null || id <=0 ) return Uni.createFrom().item(StageResult.failed());
+        String perKey = recipientKey(senderId) + ACKS_SUFFIX;
         String globalKey = GLOBAL_MIN_KEY;
-        log.error("DENYS! onAck recipient {} ack {}", recipientId, id);
+        log.error("DENYS! onAck recipient {} ack {}", senderId, id);
 
         String lua = """
                 local per = ARGV[1]
@@ -114,10 +116,10 @@ public class RedisTetrisMarker implements TetrisMarker<Message> {
                 """;
 
         List<String> args = List.of(lua, "0", perKey, globalKey, COUNTS_KEY,
-                String.valueOf(id), recipientId);
+                String.valueOf(id), senderId);
         return redis.eval(args)
                 .replaceWith(StageResult.<Message>passed())
-                .onFailure().invoke(err -> log.error("onAck failed recipient={} msg={} : {}", recipientId, id, err.getMessage(), err))
+                .onFailure().invoke(err -> log.error("onAck failed recipient={} msg={} : {}", senderId, id, err.getMessage(), err))
                 .onFailure().recoverWithItem(StageResult.failed());
     }
 
